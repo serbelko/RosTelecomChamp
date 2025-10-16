@@ -1,0 +1,1 @@
+# Тут Pydentic схемы для ORM и для FastAPI
