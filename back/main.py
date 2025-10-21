@@ -1,16 +1,15 @@
 from fastapi import FastAPI
-import uvicorn
-import logging
+from contextlib import asynccontextmanager
+from app.db.session import engine
+from app.db.base import Base
 from app.api import health_router
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
+app = FastAPI(title="Backend", lifespan=lifespan)
 app.include_router(health_router)
-
-logger = logging.getLogger(__name__)
-
-if __name__ == "__main__":
-    logger.info("Приложение запущено") 
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=2080)

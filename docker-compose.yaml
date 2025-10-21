@@ -1,14 +1,41 @@
-version: "3.9"
 services:
   postgres:
     image: postgres:15
     container_name: postgres_local
     environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: app_pass
       POSTGRES_DB: app_db
     ports:
-      - "5432:5432"
+      - "5432:5432"   # если занят — "5433:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U app_user -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
+
+  backend:
+    build:
+    
+      context: ./back  
+    image: hakatons-backend:latest
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_pass
+      POSTGRES_DB: app_db
+      DATABASE_URL: postgresql+psycopg://app_user:app_pass@postgres:5432/app_db
+      ASYNC_DATABASE_URL: postgresql+psycopg://app_user:app_pass@postgres:5432/app_db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
