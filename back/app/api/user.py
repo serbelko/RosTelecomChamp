@@ -1,21 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from app.db.session import get_db
-from app.schemas.user import RegisterRequest
-from passlib.hash import bcrypt
-from app.db.base import User
+from fastapi import APIRouter, status, Depends
+from dependency_injector.wiring import inject, Provide
+from app.core.container import Container
+from app.services.auth import AuthService
+from app.schemas.user import RegisterRequest, UserOut
 
-router = APIRouter()
+router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("/create", response_model=dict)
-async def create_user(user_data: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    q = await db.execute(select(User).where(User.email == user_data.email))
-    if q.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Email уже зарегистрирован")
-    user = User(email=user_data.email, hashed_password=bcrypt.hash(user_data.password))
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
+@router.post("/create", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@inject
+async def create_user(
+    payload: RegisterRequest,
+    auth_service: AuthService = Depends(Provide[Container.auth_service]),
+):
+    new = await auth_service.register_user(payload)
+    return {"token": new["token"]}
 

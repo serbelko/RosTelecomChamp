@@ -1,6 +1,9 @@
 from __future__ import annotations
-from typing import List, Optional
+
+import uuid
 from datetime import datetime, date
+from typing import List, Optional
+
 from sqlalchemy import (
     String,
     Integer,
@@ -9,10 +12,17 @@ from sqlalchemy import (
     TIMESTAMP,
     ForeignKey,
     func,
+    DateTime,
+    types
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship
+)
 
-import uuid
+from sqlalchemy_serializer import SerializerMixin 
 
 
 class Base(DeclarativeBase):
@@ -26,7 +36,7 @@ class Users(Base, SerializerMixin):
     password_hash: Mapped[str] = mapped_column(String(255))
     user_name: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(50))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.utcnow())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Robots(Base, SerializerMixin):
@@ -34,11 +44,11 @@ class Robots(Base, SerializerMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(types.UUID, primary_key=True)
     status: Mapped[str] = mapped_column(String(50))
-    battery_level: Mapped[int] = mapped_column()
-    last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.utcnow())
+    battery_level: Mapped[int] = mapped_column(Integer)
+    last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     current_zone: Mapped[str] = mapped_column(String(10))
-    current_row: Mapped[int] = mapped_column()
-    current_shelf: Mapped[int] = mapped_column()
+    current_row: Mapped[int] = mapped_column(Integer)
+    current_shelf: Mapped[int] = mapped_column(Integer)
 
 class Product(Base):
     __tablename__ = "products"
@@ -72,7 +82,7 @@ class InventoryHistory(Base):
     status: Mapped[Optional[str]] = mapped_column(String(50))
     scanned_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.current_timestamp()
+        TIMESTAMP, server_default=func.now()
     )
 
     product: Mapped[Product] = relationship(back_populates="inventory_records")
@@ -91,7 +101,7 @@ class AiPrediction(Base):
     recommended_order: Mapped[Optional[int]] = mapped_column(Integer)
     confidence_score: Mapped[Optional[float]] = mapped_column(DECIMAL(3, 2))
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.current_timestamp()
+        TIMESTAMP, server_default=func.now()
     )
 
     product: Mapped[Product] = relationship(back_populates="predictions")

@@ -1,2 +1,5 @@
-# тут всё очевидно - базовые api
-from app.api.health import router as health_router
+# НИЧЕГО лишнего. Только явный экспорт.
+from .health import router as health_router
+from .user import router as user_router
+
+__all__ = ["health_router", "user_router"]
