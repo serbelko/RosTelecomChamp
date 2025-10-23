@@ -56,3 +56,8 @@ class StrongPasswordException(AuthException):
 class InvalidVerifyTokenException(AuthException):
     def __init__(self):
         super().__init__("Invalid verification token for email/pwd")
+
+
+class InvalidPasswordExepiton(AuthException):
+    def __init__(self, status_code = status.HTTP_401_UNAUTHORIZED):
+        super().__init__("Email or Password is Incorrect")

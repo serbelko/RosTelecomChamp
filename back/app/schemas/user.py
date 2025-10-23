@@ -1,9 +1,5 @@
 from pydantic import BaseModel, EmailStr, UUID4
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str
-
 class DbUser(BaseModel):
     id: str | UUID4 | None = None
     email: EmailStr
@@ -19,10 +15,10 @@ class UserOut(BaseModel):
         from_attributes = True
 
 class UserUpdate(BaseModel):
-    is_active: bool | None = None
-    is_verified: bool | None = None
-    hashed_password: str | None = None
     email: EmailStr | None = None
+    password_hash: str | None = None
+    user_name: str | None = None
+    role: str | None = None
 
 class UserCreate(BaseModel):
     email: EmailStr

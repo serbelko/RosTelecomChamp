@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import structlog
 from jose import JWTError, jwt
@@ -24,18 +24,12 @@ class SecurityManager:
         expires_delta: Optional[timedelta] = None
     ) -> str:
         """
-        Создаёт подписанный JWT.
-        Поля (стандартные и полезные):
-          - sub: кому выдан
-          - exp: истечение
-          - iat: когда выдан
-          - nbf: не раньше
-          - iss: издатель (если задан)
-          - aud: аудитория (если задана)
-          - type: тип токена (access/refresh)
+        Простой access JWT для фронта (HS256, без iss/aud).
         """
         now = SecurityManager._now()
-        expire = now + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+        expire = now + (expires_delta or timedelta(
+            minutes=(settings.ACCESS_TOKEN_EXPIRE_MINUTES or 45)
+        ))
 
         to_encode: dict[str, Any] = {
             "sub":  subject,
@@ -45,42 +39,38 @@ class SecurityManager:
             "exp": int(expire.timestamp()),
         }
 
-        if getattr(settings, "ISSUER", None):
-            to_encode["iss"] = settings.ISSUER
-        if getattr(settings, "AUDIENCE", None):
-            to_encode["aud"] = settings.AUDIENCE
-
         token = jwt.encode(
             claims=to_encode,
             key=settings.SECRET_KEY,
-            algorithm=settings.ALGORITHM,   # например HS256
+            algorithm=(settings.ALGORITHM or "HS256"),
         )
         return token
 
     @staticmethod
     def verify_token(token: str) -> Optional[dict[str, Any]]:
         """
-        Валидирует и декодирует JWT.
-        Возвращает payload или None, если подпись/срок/аудитория/издатель не проходят.
+        Валидирует подпись и сроки. Никаких aud/iss. Возвращает payload или None.
         """
         options = {
-            "verify_aud": bool(getattr(settings, "AUDIENCE", None)),
+            "verify_aud": False,
+            "leeway": 30,  # на всякий случай, чтобы кривые часы не ломали жизнь
         }
         try:
             payload = jwt.decode(
                 token=token,
                 key=settings.SECRET_KEY,
-                algorithms=[settings.ALGORITHM],
-                audience=getattr(settings, "AUDIENCE", None),
-                issuer=getattr(settings, "ISSUER", None),
+                algorithms=[settings.ALGORITHM or "HS256"],
                 options=options,
             )
+            if payload.get("type") != "access":
+                logger.warning("JWT type mismatch", actual=payload.get("type"))
+                return None
             return payload
         except JWTError as e:
             logger.warning("JWT verification failed", error=str(e))
             return None
 
-    # Пароли, оставляем как было
+
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
@@ -94,4 +84,3 @@ class SecurityManager:
         if len(password) < settings.PASSWORD_MIN_LENGTH:
             return False, f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters long"
         return True, "Password is valid"
-

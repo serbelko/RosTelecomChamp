@@ -4,7 +4,7 @@ from time import time
 # from app.services.cache import CacheService
 from app.core.security import SecurityManager
 from app.schemas.user import DbUser, UserCreate
-from app.schemas.user import RegisterRequest
+from app.schemas.request import RegisterRequest, LoginRequest, CheckTokenRequest
 from app.schemas.token import Token
 from app.core.exeptions import (
     InvalidCredentialsException,
@@ -14,6 +14,7 @@ from app.core.exeptions import (
     RateLimitExceededException,
     StrongPasswordException,
     InvalidVerifyTokenException,
+    InvalidPasswordExepiton
 )
 from app.core.settings import settings
 import structlog
@@ -50,7 +51,7 @@ class AuthService:
         data["role"] = "admin"
         data["created_at"] = '12.11.2007'
         user = await self.user_repo.create_user(DbUser.model_validate(data))
-        token = SecurityManager.create_access_token(user_create.email)
+        token = SecurityManager.create_access_token(str(user.id))
         
         
         logger.info(
@@ -67,4 +68,14 @@ class AuthService:
             "token": token
         }
 
-    
+    async def login_user(self, user: LoginRequest) -> str:
+        login_user = await self.user_repo.get_by_email(user.email)
+        if not login_user:
+            raise UserNotFoundException()
+        
+        if not SecurityManager.verify_password(user.password, login_user.password_hash):
+            raise InvalidPasswordExepiton()
+        
+        token = SecurityManager.create_access_token(str(login_user.id))
+        logger.info("auth.logged_in", user_id=str(login_user.id), email=user.email)
+        return token

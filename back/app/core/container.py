@@ -16,7 +16,6 @@ class Container(containers.DeclarativeContainer):
     # ---------------- CONFIG ----------------
     config = providers.Configuration()
 
-    # ---------------- DB ----------------
     engine = providers.Singleton(
         create_async_engine,
         settings.DATABASE_URL,
@@ -25,7 +24,7 @@ class Container(containers.DeclarativeContainer):
         future=True,
     )
 
-    async_session_factory = providers.Singleton(
+    async_session_factory = providers.Singleton( # создаёт 
         sessionmaker,
         bind=engine,
         class_=AsyncSession,
