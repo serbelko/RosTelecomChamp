@@ -1,0 +1,45 @@
+<!-- src/app/features/register/register.html -->
+<div class="register-container">
+  <mat-card class="register-card">
+    <div class="logo">
+      <img src="assets/logo.svg" alt="Logo" height="50" />
+    </div>
+
+    <h2 class="title">Регистрация</h2>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Имя</mat-label>
+        <input matInput type="text" formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Пароль</mat-label>
+        <input matInput type="password" formControlName="password" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Подтвердите пароль</mat-label>
+        <input matInput type="password" formControlName="confirm" />
+      </mat-form-field>
+
+      <div class="row">
+        <mat-checkbox formControlName="agree">Согласен с условиями</mat-checkbox>
+        <button mat-raised-button color="primary" class="submit" [disabled]="loading">
+          <mat-spinner *ngIf="loading" [diameter]="20"></mat-spinner>
+          <span *ngIf="!loading">Создать аккаунт</span>
+        </button>
+      </div>
+    </form>
+
+    <div class="foot">
+      Уже есть аккаунт?
+      <a routerLink="/login">Войти</a>
+    </div>
+  </mat-card>
+</div>

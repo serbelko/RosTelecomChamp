@@ -1,10 +1,14 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth-guard'
+import { authGuard } from './core/auth/auth-guard'; // у тебя файл называется auth-guard.ts
 
 export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./features/login/login').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'register',
+    loadComponent: () => import('./features/register/register').then((m) => m.RegisterComponent),
   },
   {
     path: '',

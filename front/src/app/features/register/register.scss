@@ -1,14 +1,14 @@
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* src/app/features/register/register.scss */
+.register-container {
+  display: grid;
+  place-items: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4f8 0%, #e3e8ee 100%);
 }
 
-.login-card {
+.register-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   padding: 2rem 2rem 2.5rem;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   border-radius: 12px;
@@ -16,35 +16,36 @@
 }
 
 .logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
+  display: grid;
+  place-items: center;
+  margin-bottom: 1rem;
 }
-
 .title {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
   font-weight: 600;
 }
 
 .form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 1rem;
 }
-
 .full {
   width: 100%;
 }
 
 .row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-
 .submit {
-  min-width: 120px;
+  min-width: 160px;
 }
 
-.foot { margin-top: 1rem; text-align: center; font-size: 14px; }
+.foot {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 14px;
+}
