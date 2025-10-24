@@ -1,0 +1,32 @@
+<div class="login-container">
+  <mat-card class="login-card">
+    <div class="logo">
+      <img src="../../../../assets/logo.png" alt="Logo1" height="50" />
+    </div>
+
+    <h2 class="title">Вход в систему</h2>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="form">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" />
+        <mat-error *ngIf="form.controls.email.hasError('required')">Email обязателен</mat-error>
+        <mat-error *ngIf="form.controls.email.hasError('email')">Неверный формат</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Пароль</mat-label>
+        <input matInput type="password" formControlName="password" />
+        <mat-error *ngIf="form.controls.password.hasError('required')">Пароль обязателен</mat-error>
+      </mat-form-field>
+
+      <div class="row">
+        <mat-checkbox formControlName="remember">Запомнить меня</mat-checkbox>
+        <button mat-raised-button color="primary" class="submit" [disabled]="loading">
+          <mat-spinner *ngIf="loading" [diameter]="20"></mat-spinner>
+          <span *ngIf="!loading">Войти</span>
+        </button>
+      </div>
+    </form>
+  </mat-card>
+</div>
