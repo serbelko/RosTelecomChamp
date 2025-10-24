@@ -20,7 +20,8 @@ def create_app() -> FastAPI:
     container.wire(packages=["app.api"])
     app.include_router(health_router)                # /ping/
     app.include_router(user_router, prefix="/api/v1")# /api/v1/...
-
+    app.include_router(container.robot_router(),prefix="/api/v1") 
 
     return app
+
 app = create_app()
