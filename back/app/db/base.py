@@ -32,10 +32,10 @@ class Users(Base, SerializerMixin):
     __tablename__ = 'users'
     
     id: Mapped[uuid.UUID] = mapped_column(types.UUID, primary_key=True)
-    email: Mapped[str] = mapped_column(String(255))
-    password_hash: Mapped[str] = mapped_column(String(255))
-    user_name: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(50))
+    email: Mapped[Optional[str]] = mapped_column(String(255))
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255))
+    user_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

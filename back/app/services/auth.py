@@ -47,9 +47,6 @@ class AuthService:
             data['password_hash'] = SecurityManager.get_password_hash(data["password"])
             del data['password']
         data["id"] = uuid.uuid4()
-        data["user_name"] = "lox"
-        data["role"] = "admin"
-        data["created_at"] = '12.11.2007'
         user = await self.user_repo.create_user(DbUser.model_validate(data))
         token = SecurityManager.create_access_token(str(user.id))
         

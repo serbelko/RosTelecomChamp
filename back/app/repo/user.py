@@ -29,16 +29,17 @@ class UserRepository:
             id=payload.id,  # либо убери это, если в модели default=uuid.uuid4
             email=payload.email,
             password_hash=payload.password_hash,
-            user_name=payload.user_name,
-            role=payload.role,
+            user_name=payload.user_name if payload.user_name else None,
+            role=payload.role if payload.role else None,
         )
         self.db.add(user)
         try:
             await self.db.flush()   # чтобы получить id/RETURNING до коммита
             await self.db.commit()
-        except IntegrityError as e:
+        except Exception as e:
             await self.db.rollback()
-            logger.warning("user.create_conflict", email=payload.email)
+            logger.warning(e)
+            
             raise UserAlreadyExistsException() from e
 
         await self.db.refresh(user)
