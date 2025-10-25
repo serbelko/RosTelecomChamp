@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   robot_emulator:
-    build: ./robot_emulator
+    build: ./back/robot_emulator
     environment:
       API_URL: http://0.0.0.0:8000
       ROBOTS_COUNT: 5

@@ -1,7 +1,7 @@
 from bson import ObjectId
 from sqlalchemy import select
 from app.db.base import Base, Robots
-from app.schemas.user import RobotCreate, RobotUpdate
+from app.schemas.robot import RobotCreate, RobotUpdate
 from typing import Optional
 from datetime import datetime
 import structlog    

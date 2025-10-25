@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, Depends
 from dependency_injector.wiring import inject, Provide
 from app.core.container import Container
 from app.services.auth import AuthService
-from app.schemas.user import RegisterRequest, UserOut
+from app.schemas.user import UserOut, UserCreate
 from app.schemas.request import RegisterRequest, LoginRequest
 from app.utils.deps import get_current_user, require_role
 

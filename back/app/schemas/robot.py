@@ -22,3 +22,4 @@ class RobotUpdate(BaseModel):
         from_attributes = True
 
 
+

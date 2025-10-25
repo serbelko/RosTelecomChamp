@@ -23,7 +23,6 @@ def get_bearer(authorization: str = Header("")) -> str:
         )
     return token.strip()
 
-@inject
 async def get_current_user(
     token: str = Depends(get_bearer),
     repo: UserRepository = Depends(Provide[Container.user_repository]),
@@ -49,7 +48,6 @@ async def get_current_user(
 
 # 3) гард по ролям
 def require_role(*allowed: str):
-    @inject
     async def dep(current = Depends(get_current_user)):
         if current.role not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")

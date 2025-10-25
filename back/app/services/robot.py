@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
-from app.db.models import InventoryHistory
-from app.db.repositories.robot_repository import RobotRepository
+from app.db.base import InventoryHistory
+from app.repo.robot import RobotRepository
 
 class RobotService:
-    def __init__(self, robot_service: RobotRepository):
-        self.repo = robot_service
+    def __init__(self, robot_repo: RobotRepository):
+        self.repo = robot_repo
 
     async def process_robot_data(self, payload: dict):
         """
