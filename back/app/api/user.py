@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Request, HTTPException
 from dependency_injector.wiring import inject, Provide
 from app.core.container import Container
 from app.services.auth import AuthService
@@ -27,11 +27,19 @@ async def login_user(
     token = await auth_service.login_user(payload)
     return {"token": token}
 
-
 @router.get("/me")
-async def me(current = Depends(get_current_user)):
-    return {"id": str(current.id), "email": current.email, "role": current.role}
+def get_me(request: Request):
+    user_ctx = getattr(request.state, "current_user", None)
+    if user_ctx is None:
+        # сюда мы попадаем если:
+        # - мидлвара не подключена
+        # - этот эндпоинт вдруг оказался в open_paths
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
 
-@router.get("/admin-only")
-async def admin_only(current = Depends(require_role("admin"))):
-    return {"ok": True}
+    return {
+        "user_id": user_ctx["user_id"],
+        "claims": user_ctx["token_payload"],
+    }
