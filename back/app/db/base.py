@@ -43,6 +43,7 @@ class Robots(Base, SerializerMixin):
     __tablename__ = 'robots'
 
     id: Mapped[uuid.UUID] = mapped_column(types.UUID, primary_key=True)
+    robot_id: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50))
     battery_level: Mapped[int] = mapped_column(Integer)
     last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

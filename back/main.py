@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from app.db.session import engine
 from app.db.base import Base
 from app.core.container import Container
-from app.api import health_router, user_router
+from app.api import health, user, robot
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,9 +18,10 @@ def create_app() -> FastAPI:
     container = Container()
     app.container = container
     container.wire(packages=["app.api"])
-    app.include_router(health_router)                # /ping/
-    app.include_router(user_router, prefix="/api/v1")# /api/v1/...
-
+    app.include_router(health.router)                # /ping/
+    app.include_router(user.router, prefix="/api/v1")# /api/v1/...
+    app.include_router(robot.router,prefix="/api/v1")
 
     return app
+
 app = create_app()

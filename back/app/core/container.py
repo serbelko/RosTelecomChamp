@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.settings import settings
 
 from app.repo.user import UserRepository
+from app.repo.robot import RobotRepository  
 from app.services.auth import AuthService
 # from app.services.cache import CacheService
 
@@ -52,4 +53,9 @@ class Container(containers.DeclarativeContainer):
         AuthService,
         user_repo=user_repository,
         # cache_service=cache_service,
+    )
+
+    robot_repository = providers.Factory(
+        RobotRepository,
+        db=async_session
     )
