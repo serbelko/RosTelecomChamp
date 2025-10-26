@@ -4,9 +4,11 @@ from sqlalchemy.orm import sessionmaker
 from app.core.settings import settings
 
 from app.repo.user import UserRepository
-from app.repo.robot import RobotRepository  
+from app.repo.robot import RobotRepository
 from app.services.auth import AuthService
+from app.services.robot import RobotService
 # from app.services.cache import CacheService
+
 
 
 class Container(containers.DeclarativeContainer):
@@ -23,6 +25,7 @@ class Container(containers.DeclarativeContainer):
         echo=False,
         pool_pre_ping=True,
         future=True,
+        pool_size=30,
     )
 
     async_session_factory = providers.Singleton( # создаёт 
@@ -47,6 +50,11 @@ class Container(containers.DeclarativeContainer):
         db=async_session
     )
 
+    robot_repository = providers.Factory(
+        RobotRepository,
+        db=async_session
+    )
+
     # ---------------
 
     auth_service = providers.Factory(
@@ -55,7 +63,7 @@ class Container(containers.DeclarativeContainer):
         # cache_service=cache_service,
     )
 
-    robot_repository = providers.Factory(
-        RobotRepository,
-        db=async_session
+    robot_service = providers.Factory(
+        RobotService,
+        robot_repo=robot_repository,
     )

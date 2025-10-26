@@ -77,7 +77,7 @@ class RobotEmulator:
 
         try:
             response = requests.post(
-                f"{self.api_url}/api/robots/data",
+                f"{self.api_url}/api/v1/robots/data",
                 json=data,
                 headers={
                     "Authorization": f"Bearer robot_token_{self.robot_id}",

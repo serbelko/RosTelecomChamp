@@ -38,7 +38,7 @@ async def get_current_user(
     user_id = payload["sub"]     # у тебя sub = id или email, смотри как генеришь
     user = await repo.get_by_id(user_id)
     if not user:
-        # токен валидный, но пользователь уже не существует
+        # токен валидный, но пользователь еще не существует
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
