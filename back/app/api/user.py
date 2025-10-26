@@ -6,7 +6,7 @@ from app.schemas.user import UserOut
 from app.schemas.request import RegisterRequest, LoginRequest
 from app.utils.deps import get_current_user, require_role
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/create", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 @inject
