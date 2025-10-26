@@ -1,36 +1,46 @@
+<!-- src/app/features/login/login.html -->
 <div class="login-container">
   <mat-card class="login-card">
     <div class="logo">
-      <img src="../../../../assets/logo.png" alt="Logo1" height="50" />
+      <img src="assets/logo.svg" alt="Logo" height="48" />
     </div>
 
     <h2 class="title">Вход в систему</h2>
 
+    <div class="error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
     <form [formGroup]="form" (ngSubmit)="submit()" class="form">
       <mat-form-field appearance="outline" class="full">
         <mat-label>Email</mat-label>
-        <input matInput type="email" formControlName="email" />
+        <input matInput type="text" placeholder="Введите email" formControlName="email" />
         <mat-error *ngIf="form.controls.email.hasError('required')">Email обязателен</mat-error>
-        <mat-error *ngIf="form.controls.email.hasError('email')">Неверный формат</mat-error>
+        <mat-error *ngIf="form.controls.email.hasError('email')"
+          >Введите корректный email</mat-error
+        >
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full">
         <mat-label>Пароль</mat-label>
-        <input matInput type="password" formControlName="password" />
+        <input matInput type="password" placeholder="Введите пароль" formControlName="password" />
         <mat-error *ngIf="form.controls.password.hasError('required')">Пароль обязателен</mat-error>
+        <mat-error *ngIf="form.controls.password.hasError('minlength')"
+          >Минимум 8 символов</mat-error
+        >
       </mat-form-field>
 
       <div class="row">
         <mat-checkbox formControlName="remember">Запомнить меня</mat-checkbox>
-        <button mat-raised-button color="primary" class="submit" [disabled]="loading">
-          <mat-spinner *ngIf="loading" [diameter]="20"></mat-spinner>
-          <span *ngIf="!loading">Войти</span>
-        </button>
+        <a class="forgot" routerLink="/forgot-password">Забыли пароль?</a>
       </div>
+
+      <button mat-raised-button color="primary" class="submit" [disabled]="loading">
+        <ng-container *ngIf="!loading">Войти</ng-container>
+        <mat-progress-spinner
+          *ngIf="loading"
+          diameter="20"
+          mode="indeterminate"
+        ></mat-progress-spinner>
+      </button>
     </form>
   </mat-card>
-</div>
-<div class="foot">
-  Нет аккаунта?
-  <a routerLink="/register">Зарегистрироваться</a>
 </div>

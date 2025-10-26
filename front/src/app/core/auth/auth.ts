@@ -1,18 +1,26 @@
 // src/app/core/auth/auth.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { map, tap } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { map, switchMap, tap } from 'rxjs/operators';
+import { Observable, of } from 'rxjs';
 import { AuthStore } from './auth.store';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  role: 'operator' | 'admin' | 'viewer';
+}
 
 export interface LoginRequest {
   email: string;
   password: string;
+  remember?: boolean;
 }
+
 export interface LoginResponse {
   token: string;
-  user?: { id: string; name: string; role: 'operator' | 'admin' | 'viewer' };
+  user?: UserProfile;
 }
 
 export interface RegisterRequest {
@@ -22,7 +30,8 @@ export interface RegisterRequest {
 }
 
 const LOGIN_PATH = '/api/v1/users/login';
-const REGISTER_PATH = '/api/v1/users/create'; // при необходимости замени на свой
+const REGISTER_PATH = '/api/v1/users/create';
+const ME_PATH = '/api/v1/users/me';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -33,32 +42,60 @@ export class AuthService {
     private store: AuthStore,
   ) {}
 
+  // ⬇️ Метод, которого не хватало
   login(payload: LoginRequest): Observable<void> {
-    return this.http.post<LoginResponse>(`${this.baseUrl}${LOGIN_PATH}`, payload).pipe(
-      tap((res) => {
-        const user = res.user ?? { id: 'me', name: payload.email, role: 'operator' as const };
-        this.store.setSession(res.token, user);
+    return this.http
+      .post<LoginResponse>(`${this.baseUrl}${LOGIN_PATH}`, {
+        email: payload.email,
+        password: payload.password,
+      })
+      .pipe(
+        switchMap((res) => {
+          // 1) если сервер сразу вернул user — сохраняем и всё
+          if (res.user) {
+            this.store.setSession(res.token, res.user);
+            return of(void 0);
+          }
+
+          // 2) если user не пришёл — ДЕЛАЕМ /me С РУЧНЫМ ЗАГОЛОВКОМ
+          const headers = new HttpHeaders({
+            Authorization: `Bearer ${res.token}`, // важно: Bearer с большой буквы
+          });
+
+          return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`, { headers }).pipe(
+            tap((profile) => this.store.setSession(res.token, profile)),
+            map(() => void 0),
+          );
+        }),
+      );
+  }
+
+  register(payload: RegisterRequest): Observable<boolean> {
+    return this.http.post<LoginResponse>(`${this.baseUrl}${REGISTER_PATH}`, payload).pipe(
+      switchMap((res) => {
+        // если сервер НЕ выдал токен при регистрации — просто завершаем без /me
+        if (!res.token) {
+          return of(false); // токена нет
+        }
+
+        // если токен есть и user пришёл — сохраняем и выходим
+        if (res.user) {
+          this.store.setSession(res.token, res.user);
+          return of(true);
+        }
+
+        // токен есть, user не пришёл — подтянем профиль вручную с заголовком
+        const headers = new HttpHeaders({ Authorization: `Bearer ${res.token}` });
+        return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`, { headers }).pipe(
+          tap((profile) => this.store.setSession(res.token!, profile)),
+          map(() => true),
+        );
       }),
-      map(() => void 0),
     );
   }
 
-  register(payload: RegisterRequest): Observable<void> {
-    return this.http.post<LoginResponse>(`${this.baseUrl}${REGISTER_PATH}`, payload).pipe(
-      tap((res) => {
-        // два варианта:
-        // 1) сразу логиним по токену, если backend возвращает token при регистрации
-        if (res.token) {
-          const user = res.user ?? {
-            id: 'me',
-            name: payload.name || payload.email,
-            role: 'operator' as const,
-          };
-          this.store.setSession(res.token, user);
-        }
-      }),
-      map(() => void 0),
-    );
+  me(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`);
   }
 
   logout(): void {

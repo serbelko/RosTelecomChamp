@@ -1,0 +1,18 @@
+<mat-card class="summary">
+  <div class="item">
+    <div class="label">Всего проверок</div>
+    <div class="value">{{ (summary$ | async)?.checks }}</div>
+  </div>
+  <div class="item">
+    <div class="label">Уникальных товаров</div>
+    <div class="value">{{ (summary$ | async)?.uniqueSkus }}</div>
+  </div>
+  <div class="item">
+    <div class="label">Выявлено расхождений</div>
+    <div class="value">{{ (summary$ | async)?.mismatches }}</div>
+  </div>
+  <div class="item">
+    <div class="label">Среднее время зоны, мин</div>
+    <div class="value">{{ (summary$ | async)?.avgZoneTimeMin }}</div>
+  </div>
+</mat-card>

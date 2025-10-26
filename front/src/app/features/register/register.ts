@@ -31,7 +31,7 @@ import { AuthService } from '../../core/auth/auth';
 })
 export class RegisterComponent {
   private fb = inject(FormBuilder);
-  private auth: AuthService = inject(AuthService);
+  private auth = inject(AuthService);
   private router = inject(Router);
   private snack = inject(MatSnackBar);
 
@@ -40,18 +40,22 @@ export class RegisterComponent {
   form = this.fb.group({
     name: ['', [Validators.required]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
     confirm: ['', [Validators.required]],
     agree: [true, [Validators.requiredTrue]],
   });
 
   submit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
     const name = this.form.get('name')?.value ?? '';
     const email = this.form.get('email')?.value ?? '';
     const password = this.form.get('password')?.value ?? '';
     const confirm = this.form.get('confirm')?.value ?? '';
+
     if (password !== confirm) {
       this.snack.open('Пароли не совпадают', 'OK', { duration: 3000 });
       return;
@@ -59,15 +63,33 @@ export class RegisterComponent {
 
     this.loading = true;
 
+    // ВАЖНО: предполагаем, что AuthService.register(...) возвращает Observable<boolean>,
+    // где true = токен выдан (мы уже сохранили сессию), false = токена нет (идём на /login)
     this.auth.register({ name, email, password }).subscribe({
-      next: () => {
+      next: (hasToken: boolean) => {
         this.loading = false;
-        // если авто-логина нет на бэке, редиректим на /login
-        // иначе можно сразу на /dashboard
-        this.router.navigateByUrl('/dashboard');
+        this.snack.open('Регистрация успешна', 'OK', { duration: 2000 });
+        this.router.navigateByUrl(hasToken ? '/dashboard' : '/login');
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
+
+        if (err?.status === 409) {
+          // конфликт: пользователь с таким email уже существует
+          const msg =
+            err.error?.message || err.error?.detail || 'Пользователь с таким email уже существует';
+          this.snack.open(msg, 'OK', { duration: 3500 });
+          return;
+        }
+
+        if (err?.status === 400) {
+          const msg = err.error?.message || 'Некорректные данные';
+          this.snack.open(msg, 'OK', { duration: 3500 });
+          return;
+        }
+
+        // дефолтный вариант
+        this.snack.open('Ошибка регистрации. Попробуйте ещё раз', 'OK', { duration: 3500 });
       },
     });
   }

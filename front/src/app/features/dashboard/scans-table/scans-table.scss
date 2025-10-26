@@ -1,0 +1,42 @@
+.card {
+  height: 100%;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.table {
+  overflow: auto;
+  max-height: 260px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+.badge {
+  padding: 2px 6px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 11px;
+}
+.badge.ok {
+  background: #2e7d32;
+}
+.badge.low {
+  background: #f9a825;
+  color: #000;
+}
+.badge.crit {
+  background: #c62828;
+}

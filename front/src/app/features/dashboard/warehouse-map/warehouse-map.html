@@ -1,0 +1,101 @@
+<mat-card class="card">
+  <div class="toolbar">
+    <div class="left">
+      <button mat-mini-fab (click)="zoomIn()">+</button>
+      <button mat-mini-fab (click)="zoomOut()">−</button>
+      <button mat-stroked-button (click)="reset()">Центр</button>
+    </div>
+    <div class="legend">
+      <span class="r r-ok"></span><span>активный</span> <span class="r r-low"></span
+      ><span>low battery</span> <span class="r r-off"></span><span>offline</span>
+    </div>
+  </div>
+
+  <div
+    class="viewport"
+    #viewport
+    (mousedown)="startPan($event)"
+    (mousemove)="movePan($event)"
+    (mouseup)="endPan()"
+    (mouseleave)="endPan()"
+    (touchstart)="startPan($event)"
+    (touchmove)="movePan($event)"
+    (touchend)="endPan()"
+  >
+    <div
+      class="canvas"
+      [style.transform]="'translate(' + offsetX + 'px,' + offsetY + 'px) scale(' + scale + ')'"
+    >
+      <!-- ВЕРХНЯЯ строка букв, далее 50 нормальных строк -->
+      <svg
+        class="svg"
+        [attr.viewBox]="'0 0 ' + mapWidth + ' ' + mapHeight"
+        preserveAspectRatio="xMinYMin meet"
+      >
+        <!-- Буквы A..Z в верхнем поле -->
+        <g class="letters">
+          <ng-container *ngFor="let c of cols; index as ci">
+            <text [attr.x]="leftPad + ci * cell + 4" [attr.y]="12">{{ c }}</text>
+          </ng-container>
+        </g>
+
+        <!-- Сетка: вертикали начинаются от topPad, горизонтали каждые cell -->
+        <g class="grid">
+          <!-- вертикали -->
+          <ng-container *ngFor="let c of cols; index as ci">
+            <line
+              [attr.x1]="leftPad + ci * cell"
+              [attr.y1]="topPad"
+              [attr.x2]="leftPad + ci * cell"
+              [attr.y2]="mapHeight"
+            ></line>
+          </ng-container>
+
+          <!-- горизонтали + номера строк 1..50 -->
+          <ng-container *ngFor="let r of rows; index as i">
+            <line
+              [attr.x1]="leftPad"
+              [attr.y1]="topPad + i * cell"
+              [attr.x2]="mapWidth"
+              [attr.y2]="topPad + i * cell"
+            ></line>
+            <text text-anchor="end" [attr.x]="leftPad - 4" [attr.y]="topPad + i * cell + 12">
+              {{ r }}
+            </text>
+          </ng-container>
+        </g>
+
+        <!-- Зоны: внутри 50 реальных строк -->
+        <g class="zones">
+          <ng-container *ngFor="let z of zones">
+            <rect
+              [attr.x]="z.x"
+              [attr.y]="z.y"
+              [attr.width]="cell"
+              [attr.height]="cell"
+              [attr.fill]="zoneColor(z.level)"
+              opacity="0.18"
+              rx="3"
+              ry="3"
+            ></rect>
+          </ng-container>
+        </g>
+
+        <!-- Роботы: тоже внутри 50 строк -->
+        <g class="robots">
+          <ng-container *ngFor="let r of robots">
+            <g class="robot" [attr.transform]="'translate(' + r.x + ',' + r.y + ')'">
+              <circle r="10" fill="#fff"></circle>
+              <circle r="8.2" [attr.fill]="robotColor(r.status)"></circle>
+              <text y="4" text-anchor="middle" font-size="9" fill="#fff">{{ r.id }}</text>
+              <title>
+                ID: {{ r.id }} &#10;Батарея: {{ r.battery }}% &#10;Обновлено:
+                {{ r.updatedAt }} &#10;Зона: {{ r.zone }}
+              </title>
+            </g>
+          </ng-container>
+        </g>
+      </svg>
+    </div>
+  </div>
+</mat-card>

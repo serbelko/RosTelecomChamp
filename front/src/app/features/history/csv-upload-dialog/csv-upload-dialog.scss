@@ -1,0 +1,38 @@
+.drop {
+  border: 2px dashed #cfd6e4;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8faff;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+}
+.drop.dragging {
+  border-color: #7aa7ff;
+  background: #eef4ff;
+}
+.drop input {
+  display: none;
+}
+.req {
+  color: #6b7a90;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.error {
+  color: #c62828;
+  margin-top: 6px;
+}
+.preview {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+}
+.preview th,
+.preview td {
+  border: 1px solid #e8ecf2;
+  padding: 6px 8px;
+  font-size: 12px;
+}

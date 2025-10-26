@@ -30,8 +30,8 @@ export class AuthStore {
   }
 
   setSession(token: string, user: UserProfile) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('auth_user', JSON.stringify(user));
     this.tokenSubject.next(token);
     this.userSubject.next(user);
   }

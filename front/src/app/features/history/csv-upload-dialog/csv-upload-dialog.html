@@ -1,0 +1,39 @@
+<h2 mat-dialog-title>Загрузка данных инвентаризации</h2>
+<div mat-dialog-content>
+  <div
+    class="drop"
+    [class.dragging]="dragging"
+    (dragover)="dragOver($event)"
+    (dragleave)="dragLeave()"
+    (drop)="drop($event)"
+    (click)="pick(fileInput)"
+  >
+    <mat-icon>cloud_upload</mat-icon>
+    <div>Перетащите CSV файл сюда или нажмите для выбора</div>
+    <input #fileInput type="file" accept=".csv" (change)="onFile($event)" />
+  </div>
+
+  <div class="req">
+    Формат: CSV с разделителем ";" • Кодировка: UTF-8 • Обязательные колонки: product_id,
+    product_name, quantity, zone, date
+  </div>
+
+  <mat-progress-bar *ngIf="uploading" mode="determinate" [value]="progress"></mat-progress-bar>
+  <div class="error" *ngIf="error">{{ error }}</div>
+
+  <table *ngIf="preview.length" class="preview">
+    <tr>
+      <th *ngFor="let h of preview[0]">{{ h }}</th>
+    </tr>
+    <tr *ngFor="let row of preview.slice(1)">
+      <td *ngFor="let c of row">{{ c }}</td>
+    </tr>
+  </table>
+</div>
+
+<div mat-dialog-actions>
+  <button mat-stroked-button (click)="close()">Отмена</button>
+  <button mat-flat-button color="primary" [disabled]="!file || uploading" (click)="upload()">
+    Загрузить
+  </button>
+</div>

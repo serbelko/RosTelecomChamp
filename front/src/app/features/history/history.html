@@ -1,2 +1,6 @@
-<h2>Исторические данные</h2>
-<p>Здесь будут фильтры, таблица и экспорт.</p>
+<div class="history-page">
+  <app-filter-bar (apply)="onApply($event)" [filters]="filters()"></app-filter-bar>
+  <app-summary-bar [filters]="filters()"></app-summary-bar>
+  <app-history-table [filters]="filters()" (filtersChange)="onApply($event)"></app-history-table>
+  <app-trend-chart [filters]="filters()"></app-trend-chart>
+</div>

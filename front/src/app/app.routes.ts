@@ -1,5 +1,6 @@
+// src/app/app.routes.ts
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth-guard'; // у тебя файл называется auth-guard.ts
+import { authGuard } from './core/auth/auth-guard';
 
 export const routes: Routes = [
   {
