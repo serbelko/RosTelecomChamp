@@ -1,6 +1,6 @@
 from dependency_injector.providers import Factory
 from app.core.container import Container
-from app.services.robot_service import RobotService
+from app.services.robot import RobotService
 
 class FakeDB:
     async def commit(self): pass

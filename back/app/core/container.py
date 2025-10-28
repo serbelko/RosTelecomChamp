@@ -7,6 +7,8 @@ from app.repo.user import UserRepository
 from app.repo.robot import RobotRepository
 from app.services.auth import AuthService
 from app.services.cache import CacheService
+from app.services.robot import RobotService
+# from app.services.cache import CacheService
 
 
 

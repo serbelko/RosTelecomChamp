@@ -61,22 +61,14 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # robot_emulator:
-  #   build: ./back/robot_emulator
-  #   environment:
-  #     API_URL: http://backend:8000
-  #     ROBOTS_COUNT: 5
-  #     UPDATE_INTERVAL: 10
-  #   depends_on:
-  #     - backend
+  robot_emulator:
+     build: ./back/robot_emulator
+     environment:
+       API_URL: http://backend:8000
+       ROBOTS_COUNT: 5
+       UPDATE_INTERVAL: 10
+     depends_on:
+       - backend
 
 volumes:
   redisdata:
-  robot_emulator:
-    build: ./back/robot_emulator
-    environment:
-      API_URL: http://backend:8000
-      ROBOTS_COUNT: 5
-      UPDATE_INTERVAL: 10 # сек у нды
-    depends_on:
-        - backend
