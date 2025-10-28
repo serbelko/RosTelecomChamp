@@ -69,7 +69,7 @@ class SecurityManager:
         except JWTError as e:
             logger.warning("JWT verification failed", error=str(e))
             return None
-
+    
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:

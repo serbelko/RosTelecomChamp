@@ -42,13 +42,13 @@ class Users(Base, SerializerMixin):
 class Robots(Base, SerializerMixin):
     __tablename__ = 'robots'
 
-    id: Mapped[uuid.UUID] = mapped_column(types.UUID, primary_key=True)
-    status: Mapped[str] = mapped_column(String(50))
+    robot_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=True)
     battery_level: Mapped[int] = mapped_column(Integer)
     last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    current_zone: Mapped[str] = mapped_column(String(10))
-    current_row: Mapped[int] = mapped_column(Integer)
-    current_shelf: Mapped[int] = mapped_column(Integer)
+    zone: Mapped[str] = mapped_column(String(10))
+    row: Mapped[int] = mapped_column(Integer)
+    shelf: Mapped[int] = mapped_column(Integer)
 
 class Product(Base):
     __tablename__ = "products"
@@ -73,7 +73,7 @@ class InventoryHistory(Base):
     __tablename__ = "inventory_history"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    robot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("robots.id"))
+    robot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("robots.robot_id"))
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     zone: Mapped[str] = mapped_column(String(10), nullable=False)

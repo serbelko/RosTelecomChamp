@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ISSUER: str | None = None 
     AUDIENCE: str | None = None
+    REDIS_URL: str | None = None
 
 
 

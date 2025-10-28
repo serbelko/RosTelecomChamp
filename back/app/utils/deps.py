@@ -23,7 +23,6 @@ def get_bearer(authorization: str = Header("")) -> str:
         )
     return token.strip()
 
-@inject
 async def get_current_user(
     token: str = Depends(get_bearer),
     repo: UserRepository = Depends(Provide[Container.user_repository]),
@@ -39,7 +38,7 @@ async def get_current_user(
     user_id = payload["sub"]     # у тебя sub = id или email, смотри как генеришь
     user = await repo.get_by_id(user_id)
     if not user:
-        # токен валидный, но пользователь уже не существует
+        # токен валидный, но пользователь еще не существует
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -49,7 +48,6 @@ async def get_current_user(
 
 # 3) гард по ролям
 def require_role(*allowed: str):
-    @inject
     async def dep(current = Depends(get_current_user)):
         if current.role not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
