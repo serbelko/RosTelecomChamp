@@ -6,7 +6,7 @@ from app.core.settings import settings
 from app.repo.user import UserRepository
 from app.repo.robot import RobotRepository  
 from app.services.auth import AuthService
-# from app.services.cache import CacheService
+from app.services.cache import CacheService
 
 
 class Container(containers.DeclarativeContainer):
@@ -38,7 +38,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     # ---------------- INFRA ----------------
-    # cache_service = providers.Singleton(CacheService)
+    cache_service = providers.Singleton(CacheService)
     # # message_broker = providers.Singleton(MessageBroker)
 
     # ---------------- REPOSITORIES ----------------

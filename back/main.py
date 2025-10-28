@@ -13,12 +13,16 @@ async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
 
-def create_app() -> FastAPI:
+async def create_app() -> FastAPI:
     app = FastAPI(title="Backend", lifespan=lifespan)
 
     container = Container()
     app.container = container
     container.wire(packages=["app.api"])
+    # Connect to cache
+    cache_service = container.cache_service()
+    await cache_service.connect()
+
     app.include_router(health.router)                # /ping/
     app.include_router(user.router, prefix="/api/v1")# /api/v1/...
     app.include_router(ws.ws_router)
