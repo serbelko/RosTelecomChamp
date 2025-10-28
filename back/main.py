@@ -25,8 +25,9 @@ async def create_app() -> FastAPI:
 
     app.include_router(health.router)                # /ping/
     app.include_router(user.router, prefix="/api/v1")# /api/v1/...
+    app.include_router(robot.router,prefix="/api/v1")
+
     app.include_router(ws.ws_router)
-    # app.include_router(robot.router,prefix="/api/v1")
     app.add_middleware(AuthMiddleware)
     for route in app.router.routes:
         print("ROUTE:", getattr(route, "path", None), getattr(route, "methods", None), route)
