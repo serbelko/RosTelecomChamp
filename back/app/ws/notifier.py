@@ -13,6 +13,7 @@ def build_robot_update(robot: RobotBase) -> dict:
         "type": "robot_update",
         "robot_id": robot.robot_id,
         "battery_level": robot.battery_level,
+        "status": "active",
         "last_update": robot.last_update.isoformat(),   # alias 'timestamp' только на вход
         "location": {
             "zone": getattr(loc, "zone", None),
