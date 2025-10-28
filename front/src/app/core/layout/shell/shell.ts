@@ -22,4 +22,9 @@ export class ShellComponent {
     this.auth.logout();
     this.router.navigateByUrl('/login');
   }
+  
+  uploadCsv() {
+  // TODO: диалог выбора файла и POST на /api/v1/import/csv
+}
+
 }

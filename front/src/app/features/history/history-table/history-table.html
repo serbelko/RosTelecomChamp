@@ -1,0 +1,92 @@
+<div class="table-wrap">
+  <div class="table-actions">
+    <button mat-stroked-button (click)="exportExcel()">
+      <mat-icon>table_view</mat-icon> Экспорт в Excel
+    </button>
+    <button mat-stroked-button (click)="exportPdf()">
+      <mat-icon>picture_as_pdf</mat-icon> Экспорт в PDF
+    </button>
+    <span class="spacer"></span>
+    <button mat-flat-button color="primary" (click)="openUpload()">
+      <mat-icon>upload</mat-icon> Загрузить CSV
+    </button>
+  </div>
+
+  <table
+    mat-table
+    [dataSource]="data"
+    matSort
+    (matSortChange)="sortChange($event)"
+    class="mat-elevation-z1"
+  >
+    <ng-container matColumnDef="select">
+      <th mat-header-cell *matHeaderCellDef>
+        <mat-checkbox (change)="masterToggle()" [checked]="isAllSelected()"></mat-checkbox>
+      </th>
+      <td mat-cell *matCellDef="let row">
+        <mat-checkbox
+          (click)="$event.stopPropagation()"
+          (change)="$event ? selection.toggle(row) : null"
+          [checked]="selection.isSelected(row)"
+        ></mat-checkbox>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="ts">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Дата и время</th>
+      <td mat-cell *matCellDef="let r">{{ r.ts | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="robotId">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>ID робота</th>
+      <td mat-cell *matCellDef="let r">{{ r.robotId }}</td>
+    </ng-container>
+    <ng-container matColumnDef="zone">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Зона</th>
+      <td mat-cell *matCellDef="let r">{{ r.zone }}</td>
+    </ng-container>
+    <ng-container matColumnDef="sku">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Артикул</th>
+      <td mat-cell *matCellDef="let r">{{ r.sku }}</td>
+    </ng-container>
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Название</th>
+      <td mat-cell *matCellDef="let r">{{ r.name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="expected">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Ожид.</th>
+      <td mat-cell *matCellDef="let r">{{ r.expected }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actual">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Факт</th>
+      <td mat-cell *matCellDef="let r">{{ r.actual }}</td>
+    </ng-container>
+    <ng-container matColumnDef="delta">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Δ</th>
+      <td mat-cell *matCellDef="let r">{{ r.delta }}</td>
+    </ng-container>
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Статус</th>
+      <td mat-cell *matCellDef="let r">
+        <span
+          class="badge"
+          [class.ok]="r.status === 'OK'"
+          [class.low]="r.status === 'LOW'"
+          [class.crit]="r.status === 'CRITICAL'"
+          >{{ r.status }}</span
+        >
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+
+  <mat-paginator
+    [length]="total"
+    [pageIndex]="filters.page || 0"
+    [pageSize]="filters.pageSize || 20"
+    [pageSizeOptions]="[20, 50, 100]"
+    (page)="pageChange($event)"
+  >
+  </mat-paginator>
+</div>

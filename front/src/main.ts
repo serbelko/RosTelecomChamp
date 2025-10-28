@@ -12,6 +12,5 @@ bootstrapApplication(App, {
   providers: [
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
-    importProvidersFrom(MatSnackBarModule),
   ],
 }).catch((err) => console.error(err));

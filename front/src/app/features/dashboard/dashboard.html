@@ -1,2 +1,25 @@
-<h2>Мониторинг склада</h2>
-<p>Здесь появятся карта и статистика.</p>
+<div class="grid">
+  <section class="map">
+    <app-warehouse-map></app-warehouse-map>
+  </section>
+
+  <section class="stats">
+    <app-stats-panel></app-stats-panel>
+  </section>
+
+  <section class="scans">
+    <app-scans-table></app-scans-table>
+  </section>
+
+  <section class="ai">
+    <app-ai-forecast></app-ai-forecast>
+  </section>
+
+  <!-- Индикатор WebSocket -->
+  <div
+    class="ws-indicator"
+    [class.ok]="wsStatus === 'connected'"
+    [class.bad]="wsStatus === 'disconnected'"
+    [class.retry]="wsStatus === 'reconnecting'"
+  ></div>
+</div>

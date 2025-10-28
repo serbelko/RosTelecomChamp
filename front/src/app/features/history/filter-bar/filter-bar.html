@@ -1,0 +1,63 @@
+<form class="filter-bar" [formGroup]="form">
+  <div class="dates">
+    <mat-form-field appearance="outline">
+      <mat-label>От</mat-label>
+      <input matInput [matDatepicker]="dp1" formControlName="from" (dateChange)="emit()" />
+      <mat-datepicker-toggle matSuffix [for]="dp1"></mat-datepicker-toggle>
+      <mat-datepicker #dp1></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>До</mat-label>
+      <input matInput [matDatepicker]="dp2" formControlName="to" (dateChange)="emit()" />
+      <mat-datepicker-toggle matSuffix [for]="dp2"></mat-datepicker-toggle>
+      <mat-datepicker #dp2></mat-datepicker>
+    </mat-form-field>
+
+    <div class="quick">
+      <button type="button" mat-stroked-button (click)="quick('today'); emit()">Сегодня</button>
+      <button type="button" mat-stroked-button (click)="quick('yesterday'); emit()">Вчера</button>
+      <button type="button" mat-stroked-button (click)="quick('week'); emit()">Неделя</button>
+      <button type="button" mat-stroked-button (click)="quick('month'); emit()">Месяц</button>
+    </div>
+  </div>
+
+  <div class="selectors">
+    <mat-form-field appearance="outline">
+      <mat-label>Зоны</mat-label>
+      <mat-select multiple formControlName="zones" (selectionChange)="emit()">
+        <mat-option *ngFor="let z of zones" [value]="z">{{ z }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Категории</mat-label>
+      <mat-select multiple formControlName="categories" (selectionChange)="emit()">
+        <mat-option *ngFor="let c of categories" [value]="c">{{ c }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <div class="statuses">
+      <mat-checkbox formControlName="statusOK" (change)="emit()">ОК</mat-checkbox>
+      <mat-checkbox formControlName="statusLOW" (change)="emit()">Низкий остаток</mat-checkbox>
+      <mat-checkbox formControlName="statusCRIT" (change)="emit()">Критично</mat-checkbox>
+    </div>
+
+    <mat-form-field class="search" appearance="outline">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        placeholder="Артикул или название"
+        formControlName="query"
+        (keyup.enter)="emit()"
+      />
+    </mat-form-field>
+
+    <div class="actions">
+      <button type="button" mat-flat-button color="primary" (click)="emit()">
+        Применить фильтры
+      </button>
+      <button type="button" mat-stroked-button (click)="reset()">Сбросить</button>
+    </div>
+  </div>
+</form>

@@ -1,0 +1,29 @@
+.toolbar {
+  padding: 0 12px;
+}
+.left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.title {
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.nav a.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+.nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 16px;
+}
+.spacer {
+  flex: 1;
+}
+.user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 12px;
+}

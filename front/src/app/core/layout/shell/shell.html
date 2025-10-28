@@ -1,12 +1,22 @@
 <mat-toolbar color="primary" class="toolbar">
   <div class="left">
-    <img src="assets/logo.svg" alt="Logo" height="28" />
+    <img src="assets/logo.svg" alt="RTK" height="28" />
     <span class="title">Умный склад</span>
   </div>
-  <div class="spacer"></div>
-  <div class="right" *ngIf="store.user as user">
+
+  <nav class="nav">
+    <a mat-button routerLink="/dashboard" routerLinkActive="active">Текущий мониторинг</a>
+    <a mat-button routerLink="/history" routerLinkActive="active">Исторические данные</a>
+  </nav>
+
+  <span class="spacer"></span>
+
+  <button mat-stroked-button color="accent" (click)="uploadCsv()">Загрузить CSV</button>
+
+  <div class="user" *ngIf="store.user as user">
     <span>{{ user.name }} · {{ user.role }}</span>
     <button mat-button (click)="logout()">Выход</button>
   </div>
 </mat-toolbar>
+
 <router-outlet></router-outlet>

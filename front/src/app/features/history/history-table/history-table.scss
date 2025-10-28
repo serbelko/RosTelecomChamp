@@ -1,0 +1,32 @@
+.table-wrap {
+  background: #fff;
+  border: 1px solid #e8ecf2;
+  border-radius: 12px;
+  padding: 8px;
+}
+.table-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 4px 8px;
+}
+.table-actions .spacer {
+  flex: 1;
+}
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.badge.ok {
+  background: #eaf7ea;
+  color: #2e7d32;
+}
+.badge.low {
+  background: #fff5da;
+  color: #f9a825;
+}
+.badge.crit {
+  background: #fde8e8;
+  color: #c62828;
+}
