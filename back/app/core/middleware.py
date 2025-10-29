@@ -16,22 +16,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Пути, которые можно вызывать без access токена.
         # По типичным правилам это login, health, метрики, swagger.
-        self.open_paths = open_paths or {
-            "/api/v1/auth/login",
-            "/auth/create",
-            "/health",
-            "/metrics",
-            "/docs",
-            "/openapi.json",
-            "/redoc",
-            "/robots/data",
-        }
+        self.open_paths = open_paths or {}
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
         # 1. Разрешенные без токена
-        if path in self.open_paths:
+        if path not in self.open_paths:
             return await call_next(request)
 
         # 2. Достаем Authorization
