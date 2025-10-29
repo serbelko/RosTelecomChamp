@@ -47,14 +47,50 @@ class SecurityManager:
         return token
 
     @staticmethod
-    def verify_token(token: str) -> Optional[dict[str, Any]]:
+    def create_robot_token(
+        robot_id: str,
+        expires_delta: Optional[timedelta] = None
+    ) -> str:
         """
-        Валидирует подпись и сроки. Никаких aud/iss. Возвращает payload или None.
+        Создаёт JWT-токен для робота.
+        type = "robot".
+        Обычно его можно сделать очень "долгоживущим".
         """
+        now = SecurityManager._now()
+        expire = now + (expires_delta or timedelta(days=30))  # например, на месяц
+
+        to_encode: dict[str, Any] = {
+            "sub": robot_id,          # это robot_id, типа 'RB-001'
+            "type": "robot",          # маркер что это робот
+            "iat": int(now.timestamp()),
+            "nbf": int(now.timestamp()),
+            "exp": int(expire.timestamp()),
+        }
+
+        token = jwt.encode(
+            claims=to_encode,
+            key=settings.SECRET_KEY,
+            algorithm=(settings.ALGORITHM or "HS256"),
+        )
+        return token
+
+
+    @staticmethod
+    def verify_token(
+        token: str,
+        allowed_types: Optional[set[str]] = None,
+    ) -> Optional[dict[str, Any]]:
+        """
+        Проверяет подпись JWT, exp, nbf и т.д.
+        Если allowed_types задан, проверяет, что payload["type"] в этом списке.
+        Возвращает payload (dict) или None.
+        """
+
         options = {
             "verify_aud": False,
-            "leeway": 30,  # на всякий случай, чтобы кривые часы не ломали жизнь
+            "leeway": 30,  # немного терпимости к рассинхрону часов
         }
+
         try:
             payload = jwt.decode(
                 token=token,
@@ -62,13 +98,22 @@ class SecurityManager:
                 algorithms=[settings.ALGORITHM or "HS256"],
                 options=options,
             )
-            if payload.get("type") != "access":
-                logger.warning("JWT type mismatch", actual=payload.get("type"))
-                return None
-            return payload
+
         except JWTError as e:
             logger.warning("JWT verification failed", error=str(e))
             return None
+
+        token_type = payload.get("type")
+        if allowed_types is not None:
+            if token_type not in allowed_types:
+                logger.warning(
+                    "JWT type mismatch",
+                    actual=token_type,
+                    allowed=allowed_types,
+                )
+                return None
+
+        return payload
     
 
     @staticmethod
@@ -84,3 +129,5 @@ class SecurityManager:
         if len(password) < settings.PASSWORD_MIN_LENGTH:
             return False, f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters long"
         return True, "Password is valid"
+
+

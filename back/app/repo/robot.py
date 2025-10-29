@@ -1,51 +1,80 @@
-from bson import ObjectId
 from sqlalchemy import select
-from app.db.base import Base, Robots
-from app.schemas.robot import RobotBase, RobotOut
-from typing import Optional
-from datetime import datetime
-import structlog    
-from pydantic import ValidationError
-from fastapi.encoders import jsonable_encoder
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, Tuple
+
+import structlog
+from app.db.base import Robots
+from app.schemas.robot import RobotBase
 
 logger = structlog.get_logger(__name__)
 
 
 class RobotRepository:
-    def __init__(self, db: Base):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    
-    async def create_or_update_robot(self, robot_data: RobotBase) -> RobotOut:
+    async def get_by_id(self, robot_id: str) -> Optional[Robots]:
+        """Загрузить робота по robot_id (или None, если не найден)."""
+        stmt = select(Robots).where(Robots.robot_id == robot_id)
+        res = await self.db.execute(stmt)
+        return res.scalar_one_or_none()
 
-        query = select(Robots).where(Robots.robot_id == robot_data.robot_id)
-        result = await self.db.execute(query)
-        robot = result.scalars().first()
+    async def create(self, robot_data: RobotBase) -> Robots:
+        """Создать НОВОГО робота (без коммита)."""
+        robot = Robots(
+            robot_id=robot_data.robot_id,
+            status=robot_data.status or "online",
+            battery_level=robot_data.battery_level,
+            last_update=robot_data.last_update,
+            zone=robot_data.location.zone,
+            row=robot_data.location.row,
+            shelf=robot_data.location.shelf,
+        )
+        self.db.add(robot)
+        logger.info(
+            "robot.created_staged",
+            robot_id=robot.robot_id,
+            status=robot.status,
+            battery=robot.battery_level,
+            zone=robot.zone,
+            row=robot.row,
+            shelf=robot.shelf,
+        )
+        return robot
 
-        if not robot:
-            logger.info("Robot not found for update", id=robot_data.robot_id)
-            robot = Robots(
-                robot_id=robot_data.robot_id,
-                battery_level=robot_data.battery_level,
-                zone=robot_data.location.zone,
-                row=robot_data.location.row,
-                shelf=robot_data.location.shelf,
-                last_update=robot_data.last_update
-            )
-            self.db.add(robot)
+    async def update(self, robot: Robots, robot_data: RobotBase) -> Robots:
+        """Обновить существующего робота (без коммита)."""
+        robot.status = robot_data.status or robot.status
+        robot.battery_level = robot_data.battery_level
+        robot.last_update = robot_data.last_update
+        robot.zone = robot_data.location.zone
+        robot.row = robot_data.location.row
+        robot.shelf = robot_data.location.shelf
+
+        logger.info(
+            "robot.updated_staged",
+            robot_id=robot.robot_id,
+            status=robot.status,
+            battery=robot.battery_level,
+            zone=robot.zone,
+            row=robot.row,
+            shelf=robot.shelf,
+        )
+        return robot
+
+    async def upsert_robot(self, robot_data: RobotBase) -> Tuple[Robots, bool]:
+        """
+        Универсальная операция: создает или обновляет.
+        Возвращает (робот, created_flag).
+        Без коммита — управление транзакцией на вызывающей стороне.
+        """
+        robot = await self.get_by_id(robot_data.robot_id)
+
+        created = False
+        if robot is None:
+            robot = await self.create(robot_data)
+            created = True
         else:
-            robot.battery_level = robot_data.battery_level
-            robot.last_update = robot_data.last_update
-            robot.zone = robot_data.location.zone
-            robot.row = robot_data.location.row
-            robot.shelf = robot_data.location.shelf
-        try:
-            await self.db.commit()
-            await self.db.refresh(robot)
-            logger.info("Robot updated", robot_id=str(robot.robot_id))
-            return RobotOut.model_validate(robot)
-        except Exception as e:
-            await self.db.rollback()
-            logger.info("Robot create or update conflict", id=robot_data.robot_id)
-            raise
-        
+            robot = await self.update(robot, robot_data)
+
+        return robot, created

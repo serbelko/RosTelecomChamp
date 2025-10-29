@@ -35,7 +35,7 @@ class Users(Base, SerializerMixin):
     email: Mapped[Optional[str]] = mapped_column(String(255))
     password_hash: Mapped[Optional[str]] = mapped_column(String(255))
     user_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True) # VIEWER/MANAGER/ADMIN
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -43,7 +43,7 @@ class Robots(Base, SerializerMixin):
     __tablename__ = 'robots'
 
     robot_id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=True) # active, offline
     battery_level: Mapped[int] = mapped_column(Integer)
     last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     zone: Mapped[str] = mapped_column(String(10))
@@ -59,52 +59,73 @@ class Product(Base):
     min_stock: Mapped[int] = mapped_column(Integer, default=10)
     optimal_stock: Mapped[int] = mapped_column(Integer, default=100)
 
-    # связи
-    inventory_records: Mapped[List[InventoryHistory]] = relationship(
+    inventory_records: Mapped[List["InventoryHistory"]] = relationship(
         back_populates="product"
     )
-    predictions: Mapped[List[AiPrediction]] = relationship(back_populates="product")
+    predictions: Mapped[List["AiPrediction"]] = relationship(
+        back_populates="product"
+    )
 
     def __repr__(self) -> str:
         return f"<Product(id='{self.id}', name='{self.name}')>"
+
 
 
 class InventoryHistory(Base):
     __tablename__ = "inventory_history"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    robot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("robots.robot_id"))
-    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
+    robot_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("robots.robot_id"),
+        nullable=True,
+    )
+    product_id: Mapped[str] = mapped_column(
+        ForeignKey("products.id"),
+        nullable=False
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     zone: Mapped[str] = mapped_column(String(10), nullable=False)
     row_number: Mapped[Optional[int]] = mapped_column(Integer)
     shelf_number: Mapped[Optional[int]] = mapped_column(Integer)
     status: Mapped[Optional[str]] = mapped_column(String(50))
-    scanned_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
+    scanned_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=False), nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now()
+        TIMESTAMP(timezone=False),
+        server_default=func.now()
     )
 
-    product: Mapped[Product] = relationship(back_populates="inventory_records")
+    product: Mapped["Product"] = relationship(
+        back_populates="inventory_records"
+    )
 
     def __repr__(self) -> str:
-        return f"<InventoryHistory(id={self.id}, product_id='{self.product_id}', status='{self.status}')>"
+        return (
+            f"<InventoryHistory(id={self.id}, product_id='{self.product_id}', "
+            f"status='{self.status}')>"
+        )
 
 
 class AiPrediction(Base):
     __tablename__ = "ai_predictions"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
+    product_id: Mapped[str] = mapped_column(
+        ForeignKey("products.id"),
+        nullable=False
+    )
     prediction_date: Mapped[date] = mapped_column(Date, nullable=False)
     days_until_stockout: Mapped[Optional[int]] = mapped_column(Integer)
     recommended_order: Mapped[Optional[int]] = mapped_column(Integer)
     confidence_score: Mapped[Optional[float]] = mapped_column(DECIMAL(3, 2))
     created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP, server_default=func.now()
+        TIMESTAMP(timezone=False),
+        server_default=func.now()
     )
 
-    product: Mapped[Product] = relationship(back_populates="predictions")
+    product: Mapped["Product"] = relationship(
+        back_populates="predictions"
+    )
 
     def __repr__(self) -> str:
         return (
