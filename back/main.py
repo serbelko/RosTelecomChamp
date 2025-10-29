@@ -44,5 +44,4 @@ def create_app() -> FastAPI:
     app.add_middleware(AuthMiddleware)
     return app
 
-# Теперь можно экспортировать готовое приложение
 app = create_app()

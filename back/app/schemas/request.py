@@ -1,6 +1,6 @@
 # app/schemas/request - сюда писать все возможные request
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Any
 from datetime import datetime
 
 
@@ -40,3 +40,13 @@ class InventoryHistoryRequest(BaseModel):
     offset: int = 0
     sort_by: str = "scanned_at"                # scanned_at, product_id, zone, status, quantity...
     sort_dir: str = "desc"
+
+class RobotIngestResult(BaseModel):
+    robot: Dict[str, Any]
+    ingested_records: int
+    created_new_robot: bool
+
+
+class RobotIngestResponse(BaseModel):
+    detail: str
+    result: Optional[RobotIngestResult] = None

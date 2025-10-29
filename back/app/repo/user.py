@@ -23,19 +23,30 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # CREATE
     async def create_user(self, payload: DbUser) -> Users:
+        """
+        создание юзера:
+        id: str|UUID
+        email: str
+        password_hash: str
+        user_name: str|None
+        role: str|None
+        created_at: str|None
+
+        """
+
         user = Users(
-            id=payload.id,  # либо убери это, если в модели default=uuid.uuid4
+            id=payload.id, 
             email=payload.email,
             password_hash=payload.password_hash,
             user_name=payload.user_name if payload.user_name else None,
-            role=payload.role if payload.role else None,
+            role=payload.role if payload.role in {"VIEWER", "MANAGER", "ADMIN"} else "VIEWER",
         )
         self.db.add(user)
         try:
             await self.db.flush()   # чтобы получить id/RETURNING до коммита
             await self.db.commit()
+        
         except Exception as e:
             await self.db.rollback()
             logger.warning(e)
