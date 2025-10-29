@@ -1,105 +1,131 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any, Dict
-from datetime import datetime
-from app.db.base import InventoryHistory
-from app.repo.robot import RobotRepository
-from app.schemas.robot import RobotBase
-from app.ws.notifier import notify_robot_update, notify_inventory_alert
+# app/services/robot.py
 
-def _safe_get(obj: Any, name: str, default=None):
-    if obj is None:
-        return default
-    # pydantic/BaseModel или произвольный объект
-    if hasattr(obj, name):
-        return getattr(obj, name)
-    # dict
-    if isinstance(obj, dict):
-        return obj.get(name, default)
-    return default
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Dict, List
+
+from app.repo.robot import RobotRepository
+from app.repo.inventory import InventoryHistoryRepository
+from app.repo.product import ProductRepository
+from app.schemas.robot import RobotBase
+from app.schemas.inventory import InventoryRecordCreate
+from app.ws.notifier import notify_robot_update, notify_inventory_alert
 
 
 class RobotService:
-    def __init__(self, robot_repo: RobotRepository):
-        self.repo = robot_repo
+    def __init__(
+        self,
+        robot_repo: RobotRepository,
+        product_repo: ProductRepository,
+        history_repo: InventoryHistoryRepository,
+    ):
+        self.robot_repo = robot_repo
+        self.product_repo = product_repo
+        self.history_repo = history_repo
 
-    
-    async def process_robot_data(self, robot: RobotBase):
+    async def process_robot_data(self, robot: RobotBase) -> Dict[str, Any]:
         """
-        Обработка данных от робота без использования поля status (его нет в RobotBase).
+        Поток:
+        1. upsert робота
+        2. ensure products
+        3. save inventory_history
+        4. WS нотификации
         """
 
-        # --- [БД] при необходимости создайте/обновите запись о роботе ---
-        # robot_db = await self.repo.create_or_update_robot(robot)  # если нужно
+        # --- 1. апдейт/создание робота ---
+        robot_db = await self.robot_repo.create_or_update_robot(robot)
+        # внутри репозитория робот коммитится (у тебя так уже сделано)
+        # это окей
 
-        # --- [WS] Нотификации ---
-        # Формируем компактный payload без status
-        ws_payload: Dict[str, Any] = {
-            "robot_id": _safe_get(robot, "robot_id"),
-            "battery_level": _safe_get(robot, "battery_level"),
-            "current_zone": _safe_get(robot, "current_zone"),
-            "current_row": _safe_get(robot, "current_row"),
-            "current_shelf": _safe_get(robot, "current_shelf"),
-            "last_update": datetime.utcnow().isoformat(),
-        }
-        # Убираем None, чтобы не засорять фронт
-        ws_payload = {k: v for k, v in ws_payload.items() if v is not None}
+        # --- 2. гарантируем наличие товаров в products ---
+        # соберём {product_id: product_name} из scan_results
+        products_map: Dict[str, str] = {}
+        for scan in robot.scan_results:
+            # если нет имени — хотя бы id будет name
+            products_map[scan.product_id] = scan.product_name or scan.product_id
 
-        # Обновление карточки конкретного робота
-        await notify_robot_update(robot)
+        # добавим недостающие SKU в таблицу products
+        await self.product_repo.ensure_products_exist(products_map)
+        # важно: зафиксируем это в базе ДО того, как писать историю,
+        # иначе FK на inventory_history снова упадёт
+        await self.product_repo.session.commit()
 
-        # Алерты по товарам (если приходят)
-        scanned = (
-            _safe_get(robot, "scanned_products")
-            or _safe_get(robot, "scanned_items")
-            or []
-        )
+        # --- 3. пишем инвентаризацию в history ---
+        zone = robot.location.zone
+        row_number = robot.location.row
+        shelf_number = robot.location.shelf
+        scanned_at_ts = robot.last_update or datetime.utcnow()
 
-        try:
-            def g(o, n, d=None):  # короткий алиас
-                return _safe_get(o, n, d)
+        records_to_create: List[InventoryRecordCreate] = []
 
-            # Если в элементах нет status, фильтры будут пустыми, и мы просто ничего не отправим
-            critical_ids = [g(it, "product_id") for it in scanned
-                            if g(it, "product_id") is not None and g(it, "status") in ("CRITICAL", "CRIT")]
-            low_ids = [g(it, "product_id") for it in scanned
-                    if g(it, "product_id") is not None and g(it, "status") in ("LOW_STOCK", "LOW")]
+        for item in robot.scan_results:
+            status_norm = item.status.upper() if item.status else None
 
-            zone = _safe_get(robot, "current_zone") or (g(scanned[0], "zone") if scanned else None)
-            now = datetime.utcnow()
+            rec = InventoryRecordCreate(
+                robot_id=robot.robot_id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                zone=zone,
+                row_number=row_number,
+                shelf_number=shelf_number,
+                status=status_norm,
+                scanned_at=scanned_at_ts,
+            )
+            records_to_create.append(rec)
 
-            if critical_ids:
-                await notify_inventory_alert(
-                    zone=zone or "UNKNOWN",
-                    product_ids=critical_ids,
-                    severity="CRITICAL",
-                    at=now,
-                )
-            if low_ids:
-                await notify_inventory_alert(
-                    zone=zone or "UNKNOWN",
-                    product_ids=low_ids,
-                    severity="LOW",
-                    at=now,
-                )
-        except Exception:
-            # нотификации не должны ломать ingestion-пайплайн
-            pass
+        if records_to_create:
+            await self.history_repo.create_many(records_to_create)
+            await self.history_repo.session.commit()
 
+        # --- 4. WebSocket обновления в UI ---
+        await notify_robot_update({
+            "robot_id": robot.robot_id,
+            "battery_level": robot.battery_level,
+            "zone": zone,
+            "row": row_number,
+            "shelf": shelf_number,
+            "last_update": robot.last_update.isoformat(),
+        })
 
-    async def get_robot_status(self, robot_id: str) -> dict:
-        """
-        Получение статуса робота по его ID.
-        """
-        robot = await self.repo.get_by_id(robot_id)
-        if not robot:
-            raise ValueError("Robot not found")
+        critical_ids = [
+            scan.product_id
+            for scan in robot.scan_results
+            if scan.status and scan.status.upper() in ("CRITICAL", "CRIT")
+        ]
+
+        low_ids = [
+            scan.product_id
+            for scan in robot.scan_results
+            if scan.status and scan.status.upper() in ("LOW_STOCK", "LOW")
+        ]
+
+        now = datetime.utcnow()
+
+        if critical_ids:
+            await notify_inventory_alert(
+                zone=zone,
+                product_ids=critical_ids,
+                severity="CRITICAL",
+                at=now,
+            )
+
+        if low_ids:
+            await notify_inventory_alert(
+                zone=zone,
+                product_ids=low_ids,
+                severity="LOW",
+                at=now,
+            )
 
         return {
-            "robot_id": robot.robot_id,
-            "status": robot.status,
-            "battery_level": robot.battery_level,
-            "last_update": robot.last_update.isoformat(),
-            "current_zone": robot.current_zone,
-            "current_row": robot.current_row,
-            "current_shelf": robot.current_shelf,
+            "robot": {
+                "robot_id": robot_db.robot_id,
+                "battery_level": robot.battery_level,
+                "zone": zone,
+                "row": row_number,
+                "shelf": shelf_number,
+                "last_update": robot.last_update.isoformat(),
+            },
+            "ingested_records": len(records_to_create),
         }

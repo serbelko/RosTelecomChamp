@@ -3,8 +3,9 @@ from contextlib import asynccontextmanager
 from app.db.session import engine
 from app.db.base import Base
 from app.core.container import Container
-from app.api import health, user, robot, ws
+from app.api import health, user, robot, ws, inventory, dashboard, import_csv, export, ai
 from app.core.middleware import AuthMiddleware
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +34,12 @@ def create_app() -> FastAPI:
     app.include_router(user.router)
     app.include_router(robot.router)
     app.include_router(ws.ws_router)
+    app.include_router(inventory.router)
+    app.include_router(dashboard.router)
+    app.include_router(import_csv.router)
+    app.include_router(export.router)
+    app.include_router(ai.router)
+
 
     app.add_middleware(AuthMiddleware)
     return app

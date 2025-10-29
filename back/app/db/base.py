@@ -43,7 +43,7 @@ class Robots(Base, SerializerMixin):
     __tablename__ = 'robots'
 
     robot_id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=True) # active, offline
     battery_level: Mapped[int] = mapped_column(Integer)
     last_update: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     zone: Mapped[str] = mapped_column(String(10))
@@ -75,11 +75,11 @@ class InventoryHistory(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     robot_id: Mapped[Optional[str]] = mapped_column(ForeignKey("robots.robot_id"))
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False) # текущее кол-во на полке
     zone: Mapped[str] = mapped_column(String(10), nullable=False)
     row_number: Mapped[Optional[int]] = mapped_column(Integer)
     shelf_number: Mapped[Optional[int]] = mapped_column(Integer)
-    status: Mapped[Optional[str]] = mapped_column(String(50))
+    status: Mapped[Optional[str]] = mapped_column(String(50)) # OK, LOW_STOCK, CRITICAL
     scanned_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.now()
