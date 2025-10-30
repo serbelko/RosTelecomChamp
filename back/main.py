@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Backend", lifespan=lifespan)
+    app = FastAPI(title="Backend", lifespan=lifespan, redirect_slashes=False)
 
     app.include_router(health.router)
     app.include_router(user.router)

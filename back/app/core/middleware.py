@@ -1,14 +1,14 @@
-from typing import Optional, Set
+from typing import Optional, Set, Callable
 
 import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from app.core.security import SecurityManager  
 
 logger = structlog.get_logger(__name__)
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, open_paths: Optional[Set[str]] = None):
@@ -17,14 +17,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Пути, которые можно вызывать без access токена.
         # По типичным правилам это login, health, метрики, swagger.
         self.open_paths = open_paths or {
-            "/api/v1/auth/login",
-            "/auth/create",
+            "/users/login",
+            "/users/create",
+            "/users/verify",
             "/health",
+            "/ping",
             "/metrics",
             "/docs",
             "/openapi.json",
             "/redoc",
+            "/robots/register",
             "/robots/data",
+            "/ws"
         }
 
     async def dispatch(self, request: Request, call_next):

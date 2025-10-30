@@ -61,14 +61,39 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  robot_emulator:
-     build: ./back/robot_emulator
-     environment:
-       API_URL: http://backend:8000
-       ROBOTS_COUNT: 5
-       UPDATE_INTERVAL: 10
-     depends_on:
-       - backend
+  # robot_emulator:
+  #    build: ./back/robot_emulator
+  #    environment:
+  #      API_URL: http://backend:8000
+  #      ROBOTS_COUNT: 5
+  #      UPDATE_INTERVAL: 10
+  #    depends_on:
+  #      - backend
+
+  tests:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.test
+    command: >
+      sh -c "python -m pytest --cov=app --cov-branch --cov-report=term-missing --cov-report=html:htmlcov"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_pass
+      POSTGRES_DB: app_db
+      DATABASE_URL: postgresql+asyncpg://app_user:app_pass@postgres:5432/app_db
+      ASYNC_DATABASE_URL: postgresql+asyncpg://app_user:app_pass@postgres:5432/app_db
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      SECRET_KEY: secret
+      PASSWORD_MIN_LENGTH: 8
+      REDIS_URL: redis://redis:6379/0
+      PYTHONPATH: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
 volumes:
   redisdata:

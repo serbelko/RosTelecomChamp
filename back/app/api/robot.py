@@ -152,3 +152,4 @@ async def register_robot(
             status_code=500,
             detail="Failed to register robot"
         )
+

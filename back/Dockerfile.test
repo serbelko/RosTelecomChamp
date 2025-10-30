@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
 
 # системные зависимости для psycopg
 RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
@@ -12,4 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install pytest pytest-cov pytest-asyncio httpx
 
 COPY . .
-# никакого CMD тут — он прописан в docker-compose "command"
+
+# Не нужно заменять URL, они уже правильно настроены в conftest.py
