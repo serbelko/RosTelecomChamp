@@ -1,14 +1,14 @@
-from typing import Optional, Set
+from typing import Optional, Set, Callable
 
 import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from app.core.security import SecurityManager  
 
 logger = structlog.get_logger(__name__)
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, open_paths: Optional[Set[str]] = None):

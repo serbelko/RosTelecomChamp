@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from fastapi import APIRouter
 
-router = APIRouter(prefix="/ping", tags=["health"])
+router = APIRouter(
+    tags=["health"],
+    redirect_slashes=False
+)
 
-@router.get("/", summary="Liveness probe")
+@router.get("/health", summary="Liveness probe")
 async def ping():
     return {"status": "ok"}

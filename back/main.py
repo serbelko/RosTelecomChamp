@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Backend", lifespan=lifespan)
+    app = FastAPI(title="Backend", lifespan=lifespan, redirect_slashes=False)
 
     # 👇 ДОБАВЛЕНО: Разрешаем запросы с фронта (CORS)
     app.add_middleware(

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Iterable, Dict, Any, Optional
+from fastapi import APIRouter
 
 from app.ws.connection_manager import connection_manager
+
+websocket_router = APIRouter()
 
 
 def build_robot_update(payload: Dict[str, Any]) -> Dict[str, Any]:
