@@ -12,14 +12,14 @@
   </section>
 
   <section class="ai">
-    <app-ai-forecast></app-ai-forecast>
+    <app-forecast-panel></app-forecast-panel>
   </section>
 
   <!-- Индикатор WebSocket -->
   <div
     class="ws-indicator"
     [class.ok]="wsStatus === 'connected'"
+    [class.retry]="wsStatus === 'connecting'"
     [class.bad]="wsStatus === 'disconnected'"
-    [class.retry]="wsStatus === 'reconnecting'"
   ></div>
 </div>

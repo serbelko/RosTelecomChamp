@@ -22,7 +22,7 @@ import { HistoryFilters } from './history.service';
   styleUrls: ['./history.scss'],
 })
 export class HistoryComponent {
-  filters = signal<HistoryFilters>({ page: 0, pageSize: 20, status: ['OK', 'LOW', 'CRITICAL'] });
+  filters = signal<HistoryFilters>({ page: 0, pageSize: 20, status: ['OK', 'LOW_STOCK', 'CRITICAL'] });
 
   onApply(f: HistoryFilters) {
     // сбрасываем страницу

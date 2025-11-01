@@ -1,9 +1,16 @@
-// src/app/core/http/auth.interceptor.ts
 import { HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { AuthStore } from '../auth/auth.store';
 
+/**
+ * Функциональный перехватчик: добавляет Authorization: Bearer <token>
+ * ко всем исходящим HTTP-запросам, если токен есть в localStorage.
+ */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const token = inject(AuthStore).token;
-  return token ? next(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })) : next(req);
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    return next(req);
+  }
+  const authReq = req.clone({
+    setHeaders: { Authorization: `Bearer ${token}` },
+  });
+  return next(authReq);
 };

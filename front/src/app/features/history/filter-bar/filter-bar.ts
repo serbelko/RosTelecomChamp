@@ -71,7 +71,7 @@ export class FilterBarComponent {
     zones: [[] as string[]],
     categories: [[] as string[]],
     statusOK: [true],
-    statusLOW: [true],
+    statusLOW: [true], // будет маппиться в LOW_STOCK
     statusCRIT: [true],
     query: [''],
     pageSize: [20],
@@ -85,9 +85,9 @@ export class FilterBarComponent {
         from: f.from ? new Date(f.from) : null,
         to: f.to ? new Date(f.to) : null,
         zones: f.zones ?? [],
-        categories: f.categories ?? [],
+        categories: (f as any).categories ?? [], // на случай если HistoryFilters без categories
         statusOK: f.status?.includes('OK') ?? true,
-        statusLOW: f.status?.includes('LOW') ?? true,
+        statusLOW: f.status?.includes('LOW_STOCK') ?? true,
         statusCRIT: f.status?.includes('CRITICAL') ?? true,
         query: f.query ?? '',
         pageSize: f.pageSize ?? 20,
@@ -136,11 +136,13 @@ export class FilterBarComponent {
     const v = this.form.value;
     const statuses = [
       v.statusOK ? 'OK' : null,
-      v.statusLOW ? 'LOW' : null,
+      v.statusLOW ? 'LOW_STOCK' : null, // ключевая правка здесь
       v.statusCRIT ? 'CRITICAL' : null,
-    ].filter(Boolean) as Array<'OK' | 'LOW' | 'CRITICAL'>;
+    ].filter(Boolean) as Array<'OK' | 'LOW_STOCK' | 'CRITICAL'>;
 
-    this.apply.emit({
+    // Собираем объект фильтров. Если HistoryFilters у тебя не содержит categories,
+    // приводим через unknown как HistoryFilters, чтобы не ругался компилятор.
+    const payload: any = {
       from: v.from ? v.from.toISOString() : undefined,
       to: v.to ? v.to.toISOString() : undefined,
       zones: v.zones ?? [],
@@ -148,6 +150,8 @@ export class FilterBarComponent {
       status: statuses,
       query: v.query ?? '',
       pageSize: v.pageSize ?? 20,
-    });
+    };
+
+    this.apply.emit(payload as unknown as HistoryFilters);
   }
 }

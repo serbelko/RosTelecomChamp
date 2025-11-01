@@ -60,6 +60,9 @@
             "production": {
               "buildTarget": "front:build:production"
             },
+            "options": {
+              "proxyConfig": "proxy.conf.js"
+            },
             "development": {
               "buildTarget": "front:build:development"
             }

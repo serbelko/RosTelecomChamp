@@ -8,11 +8,15 @@
     <div class="row" *ngFor="let r of rows">
       <div class="name">{{ r.itemName }} ({{ r.sku }})</div>
       <div class="stock">Остаток: {{ r.stock }}</div>
-      <div class="date">Исчерпание: {{ r.depletionDate | date: 'dd.MM.yyyy' }}</div>
+      <div class="date">
+        Исчерпание:
+        {{ r.depletionDate ? (r.depletionDate | date: 'dd.MM.yyyy') : '—' }}
+      </div>
       <div class="rec">Рекомендуется: {{ r.recommendedQty }}</div>
       <div class="conf">Достоверность: {{ r.confidence | number: '1.0-0' }}%</div>
     </div>
   </div>
+
   <ng-template #empty>
     <div class="empty">Нет данных прогноза</div>
   </ng-template>

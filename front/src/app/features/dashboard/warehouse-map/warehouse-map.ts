@@ -1,8 +1,17 @@
-import { AfterViewInit, Component, ElementRef, ViewChild, inject } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  NgZone,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
-import { DashboardService, Robot, ZoneStatus } from '../dashboard.service';
+import { DashboardService, Robot } from '../dashboard.service';
 import { map } from 'rxjs/operators';
 
 @Component({
@@ -11,9 +20,12 @@ import { map } from 'rxjs/operators';
   imports: [CommonModule, MatCardModule, MatButtonModule],
   templateUrl: './warehouse-map.html',
   styleUrls: ['./warehouse-map.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WarehouseMapComponent implements AfterViewInit {
   private api = inject(DashboardService);
+  private cdr = inject(ChangeDetectorRef);
+  private zone = inject(NgZone);
 
   // колонки A..Z и 50 реальных строк
   cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
@@ -48,13 +60,33 @@ export class WarehouseMapComponent implements AfterViewInit {
   private startOffsetY = 0;
 
   robots: Robot[] = [];
-  zones: Array<{ x: number; y: number; level: ZoneStatus['level'] }> = [];
+  zones: Array<{ x: number; y: number; level: 'ok' | 'warn' | 'critical' }> = [];
 
   ngAfterViewInit() {
-    const ro = new ResizeObserver(() => this.recalcFit());
-    if (this.viewportRef?.nativeElement) {
-      ro.observe(this.viewportRef.nativeElement);
-      this.recalcFit();
+    // Первичный пересчёт — после первого рендера (во избежание NG0100)
+    this.zone.runOutsideAngular(() => {
+      requestAnimationFrame(() => {
+        this.zone.run(() => {
+          this.recalcFit();
+          this.cdr.markForCheck();
+        });
+      });
+    });
+
+    // ResizeObserver — обновляем через rAF
+    const host = this.viewportRef?.nativeElement;
+    if (host) {
+      const ro = new ResizeObserver(() => {
+        this.zone.runOutsideAngular(() => {
+          requestAnimationFrame(() => {
+            this.zone.run(() => {
+              this.recalcFit();
+              this.cdr.markForCheck();
+            });
+          });
+        });
+      });
+      ro.observe(host);
     }
 
     // координаты учитывают верхний отступ topPad
@@ -64,8 +96,10 @@ export class WarehouseMapComponent implements AfterViewInit {
         x: this.leftPad + x.x * this.cell + this.cell / 2,
         y: this.topPad + x.y * this.cell + this.cell / 2,
       }));
+      this.cdr.markForCheck();
     });
 
+    // зоны + вычисление уровня
     this.api
       .zones$()
       .pipe(
@@ -75,15 +109,20 @@ export class WarehouseMapComponent implements AfterViewInit {
             const row = Number(z.zone.replace(/[A-Z]/g, ''));
             const ci = Math.max(0, Math.min(25, col.charCodeAt(0) - 65));
             const ri = Math.max(0, Math.min(49, row - 1));
+            const level: 'ok' | 'warn' | 'critical' =
+              z.robots === 0 ? 'ok' : z.robots < 3 ? 'warn' : 'critical';
             return {
               x: this.leftPad + ci * this.cell,
               y: this.topPad + ri * this.cell,
-              level: z.level,
+              level,
             };
           }),
         ),
       )
-      .subscribe((z) => (this.zones = z));
+      .subscribe((z) => {
+        this.zones = z;
+        this.cdr.markForCheck();
+      });
   }
 
   private recalcFit() {
@@ -105,15 +144,25 @@ export class WarehouseMapComponent implements AfterViewInit {
   // zoom
   zoomIn() {
     this.userZoom = Math.min(2.5, +(this.userZoom + 0.1).toFixed(2));
+    this.cdr.markForCheck();
   }
   zoomOut() {
     this.userZoom = Math.max(0.5, +(this.userZoom - 0.1).toFixed(2));
+    this.cdr.markForCheck();
   }
   reset() {
     this.userZoom = 1;
     this.offsetX = 0;
     this.offsetY = 0;
-    this.recalcFit();
+    // пересчёт после сброса
+    this.zone.runOutsideAngular(() => {
+      requestAnimationFrame(() => {
+        this.zone.run(() => {
+          this.recalcFit();
+          this.cdr.markForCheck();
+        });
+      });
+    });
   }
 
   // pan
@@ -151,7 +200,7 @@ export class WarehouseMapComponent implements AfterViewInit {
   robotColor(s: Robot['status']) {
     return s === 'active' ? '#2e7d32' : s === 'low' ? '#f9a825' : '#c62828';
   }
-  zoneColor(l: ZoneStatus['level']) {
+  zoneColor(l: 'ok' | 'warn' | 'critical') {
     return l === 'ok' ? '#2e7d32' : l === 'warn' ? '#f9a825' : '#c62828';
   }
 }

@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { DashboardService, ScanRow } from '../dashboard.service';
@@ -11,29 +11,27 @@ import { Subscription } from 'rxjs';
   templateUrl: './scans-table.html',
   styleUrls: ['./scans-table.scss'],
 })
-export class ScansTableComponent {
+export class ScansTableComponent implements OnInit, OnDestroy {
   private api = inject(DashboardService);
-  private sub?: Subscription;
+  private sub = new Subscription();
 
   rows: ScanRow[] = [];
-  paused = false;
 
-  @ViewChild('scrollHost') host?: ElementRef<HTMLDivElement>;
-
-  constructor() {
-    this.sub = this.api.scans$().subscribe((data) => {
-      if (!this.paused) {
-        this.rows = data.slice(0, 20);
-        // автоскролл вниз
-        queueMicrotask(() => {
-          const el = this.host?.nativeElement;
-          if (el) el.scrollTop = el.scrollHeight;
-        });
-      }
-    });
+  ngOnInit(): void {
+    // теперь берём поток без аргументов (данные уже в сторе)
+    this.sub.add(
+      this.api.scans$().subscribe((list) => {
+        this.rows = (list ?? []).slice(0, 20);
+      }),
+    );
   }
 
-  togglePause() {
-    this.paused = !this.paused;
+  ngOnDestroy(): void {
+    this.sub.unsubscribe();
+  }
+
+  /** trackBy для *ngFor, чтобы Angular не перерисовывал все строки */
+  trackById(_index: number, row: ScanRow): number | string {
+    return row.id ?? `${row.productId}-${row.scannedAt}`;
   }
 }

@@ -1,21 +1,24 @@
 <mat-card class="card">
   <div class="cards">
-    <mat-card class="kpi"
-      ><div class="label">Активных роботов</div>
-      <div class="value">{{ metrics?.active }} / {{ metrics?.total }}</div></mat-card
-    >
-    <mat-card class="kpi"
-      ><div class="label">Проверено сегодня</div>
-      <div class="value">{{ metrics?.checkedToday }}</div></mat-card
-    >
-    <mat-card class="kpi"
-      ><div class="label">Критических остатков</div>
-      <div class="value">{{ metrics?.criticalSkus }}</div></mat-card
-    >
-    <mat-card class="kpi"
-      ><div class="label">Средний заряд</div>
-      <div class="value">{{ metrics?.avgBattery }}%</div></mat-card
-    >
+    <mat-card class="kpi">
+      <div class="label">Активных роботов</div>
+      <div class="value">{{ metrics?.active ?? 0 }} / {{ metrics?.total ?? 0 }}</div>
+    </mat-card>
+
+    <mat-card class="kpi">
+      <div class="label">Проверено сегодня</div>
+      <div class="value">{{ metrics?.checkedToday ?? 0 }}</div>
+    </mat-card>
+
+    <mat-card class="kpi">
+      <div class="label">Критических остатков</div>
+      <div class="value">{{ metrics?.criticalSkus ?? 0 }}</div>
+    </mat-card>
+
+    <mat-card class="kpi">
+      <div class="label">Средний заряд</div>
+      <div class="value">{{ metrics?.avgBattery ?? 0 }}%</div>
+    </mat-card>
   </div>
 
   <h4>Активность роботов (последний час)</h4>

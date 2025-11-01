@@ -1,11 +1,14 @@
-import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+
 import { WarehouseMapComponent } from './warehouse-map/warehouse-map';
 import { StatsPanelComponent } from './stats-panel/stats-panel';
 import { ScansTableComponent } from './scans-table/scans-table';
-import { AiForecastComponent } from './ai-forecast/ai-forecast';
+import { ForecastPanelComponent } from './ai-forecast/ai-forecast';
+
 import { WsService, WsStatus } from '../../core/realtime/ws';
 import { Subscription } from 'rxjs';
+import { DashboardService } from './dashboard.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -15,22 +18,37 @@ import { Subscription } from 'rxjs';
     WarehouseMapComponent,
     StatsPanelComponent,
     ScansTableComponent,
-    AiForecastComponent,
+    ForecastPanelComponent,
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  private ws = inject(WsService);
+  private readonly ws = inject(WsService);
+  private readonly dash = inject(DashboardService);
+
   wsStatus: WsStatus = 'disconnected';
-  private sub?: Subscription;
+  private subs = new Subscription();
 
   ngOnInit() {
-    this.sub = this.ws.status$.subscribe((s) => (this.wsStatus = s));
-    this.ws.connect('/ws/robots').subscribe(); // сообщения о роботах по вебсокету
+    // запустить единый стор (первая загрузка + резервный таймер)
+    this.dash.start();
+
+    // статус сокета
+    this.subs.add(this.ws.status$.subscribe((s) => (this.wsStatus = s)));
+
+    // подключиться к сокету и на ЛЮБОЕ сообщение — перезагрузить current
+    this.subs.add(
+      this.ws.connect('/ws/notifications').subscribe({
+        next: (_msg) => this.dash.forceRefresh(),
+        error: () => {
+          /* молча, стор продолжит опрос */
+        },
+      }),
+    );
   }
 
   ngOnDestroy() {
-    this.sub?.unsubscribe();
+    this.subs.unsubscribe();
   }
 }

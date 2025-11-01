@@ -1,8 +1,8 @@
 // src/app/core/auth/auth.ts
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { map, switchMap, tap } from 'rxjs/operators';
-import { Observable, of } from 'rxjs';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
 import { AuthStore } from './auth.store';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
@@ -19,7 +19,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  token?: string;
   user?: UserProfile;
 }
 
@@ -29,20 +29,32 @@ export interface RegisterRequest {
   password: string;
 }
 
-const LOGIN_PATH = '/api/v1/users/login';
-const REGISTER_PATH = '/api/v1/users/create';
-const ME_PATH = '/api/v1/users/me';
+// так как apiUrl уже содержит /api — оставляем относительные пути БЕЗ /api
+const LOGIN_PATH = '/auth/login';
+const REGISTER_PATH = '/auth/create';
+const ME_PATH = '/auth/me';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private baseUrl = environment.apiUrl;
+  private readonly baseUrl = environment.apiUrl;
 
   constructor(
-    private http: HttpClient,
-    private store: AuthStore,
+    private readonly http: HttpClient,
+    private readonly store: AuthStore,
   ) {}
 
-  // ⬇️ Метод, которого не хватало
+  private authHeaders(token: string | null): { headers?: HttpHeaders } {
+    return token ? { headers: new HttpHeaders({ Authorization: `Bearer ${token}` }) } : {};
+  }
+
+  private getToken(): string | null {
+    try {
+      return localStorage.getItem('auth_token');
+    } catch {
+      return null;
+    }
+  }
+
   login(payload: LoginRequest): Observable<void> {
     return this.http
       .post<LoginResponse>(`${this.baseUrl}${LOGIN_PATH}`, {
@@ -51,51 +63,44 @@ export class AuthService {
       })
       .pipe(
         switchMap((res) => {
-          // 1) если сервер сразу вернул user — сохраняем и всё
-          if (res.user) {
-            this.store.setSession(res.token, res.user);
-            return of(void 0);
+          const token = res.token;
+          if (!token) {
+            return throwError(() => new Error('No token returned from /auth/login'));
           }
 
-          // 2) если user не пришёл — ДЕЛАЕМ /me С РУЧНЫМ ЗАГОЛОВКОМ
-          const headers = new HttpHeaders({
-            Authorization: `Bearer ${res.token}`, // важно: Bearer с большой буквы
-          });
+          // временный профиль — чтобы UI не пустел, если /me вернёт 401
+          const fallbackUser: UserProfile = {
+            id: 'me',
+            name: (payload.email && payload.email.split('@')[0]) || 'user',
+            role: 'operator',
+          };
+          this.store.setSession(token, res.user ?? fallbackUser);
 
-          return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`, { headers }).pipe(
-            tap((profile) => this.store.setSession(res.token, profile)),
-            map(() => void 0),
-          );
+          // подтягиваем реальный профиль (если упадёт — молча игнорируем)
+          return this.http
+            .get<UserProfile>(`${this.baseUrl}${ME_PATH}`, this.authHeaders(token))
+            .pipe(
+              tap((profile) => this.store.setSession(token, profile)),
+              map(() => void 0),
+              catchError(() => of(void 0)),
+            );
         }),
       );
   }
 
   register(payload: RegisterRequest): Observable<boolean> {
-    return this.http.post<LoginResponse>(`${this.baseUrl}${REGISTER_PATH}`, payload).pipe(
-      switchMap((res) => {
-        // если сервер НЕ выдал токен при регистрации — просто завершаем без /me
-        if (!res.token) {
-          return of(false); // токена нет
-        }
-
-        // если токен есть и user пришёл — сохраняем и выходим
-        if (res.user) {
-          this.store.setSession(res.token, res.user);
-          return of(true);
-        }
-
-        // токен есть, user не пришёл — подтянем профиль вручную с заголовком
-        const headers = new HttpHeaders({ Authorization: `Bearer ${res.token}` });
-        return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`, { headers }).pipe(
-          tap((profile) => this.store.setSession(res.token!, profile)),
-          map(() => true),
-        );
-      }),
+    // /auth/create часто не возвращает токен — после 201 сразу логинимся
+    return this.http.post<unknown>(`${this.baseUrl}${REGISTER_PATH}`, payload).pipe(
+      switchMap(() =>
+        this.login({ email: payload.email, password: payload.password }).pipe(map(() => true)),
+      ),
+      catchError(() => of(false)),
     );
   }
 
   me(): Observable<UserProfile> {
-    return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`);
+    const token = this.getToken();
+    return this.http.get<UserProfile>(`${this.baseUrl}${ME_PATH}`, this.authHeaders(token));
   }
 
   logout(): void {
