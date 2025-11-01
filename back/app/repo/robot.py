@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 
 import structlog
 from app.db.base import Robots
@@ -78,3 +78,34 @@ class RobotRepository:
             robot = await self.update(robot, robot_data)
 
         return robot, created
+
+    async def get_all(
+        self,
+        *,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        Возвращает список:
+        [
+          {"robot_id": "...", "status": "...", "battery_level": 87},
+          ...
+        ]
+        """
+        stmt = (
+            select(Robots.robot_id, Robots.status, Robots.battery_level)
+            .order_by(Robots.robot_id)
+            .offset(offset)
+        )
+        if limit is not None:
+            stmt = stmt.limit(limit)
+
+        rows = (await self.db.execute(stmt)).mappings().all()
+        return [
+            {
+                "robot_id": row["robot_id"],
+                "status": row["status"],
+                "battery_level": row["battery_level"],
+            }
+            for row in rows
+        ]

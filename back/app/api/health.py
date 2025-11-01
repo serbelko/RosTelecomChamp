@@ -5,6 +5,6 @@ router = APIRouter(
     redirect_slashes=False
 )
 
-@router.get("/health", summary="Liveness probe")
+@router.get("/ping", summary="Liveness probe")
 async def ping():
     return {"status": "ok"}

@@ -21,7 +21,7 @@ class RobotAuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, protected_paths: Optional[Set[str]] = None):
         super().__init__(app)
         self.protected_paths = protected_paths or {
-            "/robots/data",
+            "/api/robots/data",
         }
 
     async def dispatch(self, request: Request, call_next):

@@ -16,7 +16,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Пути, которые можно вызывать без access токена.
         # По типичным правилам это login, health, метрики, swagger.
-        self.open_paths = open_paths or {}
+        self.open_paths = open_paths or {"/api/auth/me"}
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path

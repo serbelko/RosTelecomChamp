@@ -6,6 +6,7 @@ from app.db.base import Base
 from app.core.container import Container
 from app.api import health, user, robot, ws, inventory, dashboard, import_csv, export, ai
 from app.core.middleware import AuthMiddleware
+from app.core.robot_middleware import RobotAuthMiddleware
 
 
 @asynccontextmanager
@@ -56,26 +57,9 @@ def create_app() -> FastAPI:
 
 
     app.add_middleware(AuthMiddleware)
+    app.add_middleware(RobotAuthMiddleware)
     return app
 
 app = create_app()
 
-# ==============================
-# ✅ ЧТО ДОБАВЛЕНО (Лёша):
-# 1. Импорт:
-#    from fastapi.middleware.cors import CORSMiddleware
-#
-# 2. Внутри create_app() перед роутерами:
-#    app.add_middleware(
-#        CORSMiddleware,
-#        allow_origins=["http://localhost:4200"],
-#        allow_credentials=True,
-#        allow_methods=["*"],
-#        allow_headers=["*"],
-#    )
-#
-# 👉 Это включает CORS, чтобы Angular (http://localhost:4200)
-#    мог без ошибок делать запросы к FastAPI на http://localhost:8000.
-#
-# ⚠️ Без этого браузер блокировал бы preflight-запросы OPTIONS.
-# ==============================
+    

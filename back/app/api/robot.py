@@ -6,7 +6,8 @@ import structlog
 
 from app.services.robot import RobotService
 from app.core.container import Container
-from app.schemas.robot import RobotBase, RobotRegisterRequest, RobotRegisterResponse
+
+from app.schemas.robot import RobotBase, RobotRegisterRequest, RobotRegisterResponse, RobotsListResponse
 from app.schemas.request import RobotIngestResponse, RobotIngestResult
 
 logger = structlog.get_logger(__name__)
@@ -153,3 +154,11 @@ async def register_robot(
             detail="Failed to register robot"
         )
 
+
+@router.get("/all", status_code=status.HTTP_200_OK,response_model=RobotsListResponse, 
+            summary="Получить список всех роботов", description="Возвращает лист всех зарегестрированных роботов")
+@inject
+async def get_all_robots(
+    service: RobotService = Depends(Provide[Container.robot_service]),
+) -> RobotsListResponse:
+    return await service.get_all_robots()

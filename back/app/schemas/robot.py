@@ -76,7 +76,37 @@ class RobotRegisterResponse(BaseModel):
     robot_id: str
     status: str
     registered_at: datetime
-    token: str = Field(
-        ...,
-        description="JWT токен робота (type='robot'). Передавать как Authorization: Bearer <token>",
-    )
+    token: str = Field()    
+    create_flag: bool
+
+
+
+class RobotForListOut(BaseModel):
+    """Единичный робот в списке."""
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "robot_id": "RB-001",
+            "status": "online",
+            "registered_at": "2025-10-31T23:38:32.270944Z",
+        }
+    })
+
+    robot_id: str = Field(..., description="Уникальный ID робота")
+    status: Optional[str] = Field(None, description="Текущий статус робота, например online/offline/error")
+    battery_level: float = Field(..., description="Уровень заряда батареи")
+
+
+class RobotsListResponse(BaseModel):
+    """Общий JSON со всеми роботами."""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "total": 2,
+            "items": [
+                {"robot_id": "RB-001", "status": "online", "battery_level": "12.21"},
+                {"robot_id": "RB-002", "status": "offline", "battery_level": "100.00"}
+            ]
+        }
+    })
+
+    total: int = Field(..., ge=0, description="Общее число роботов")
+    items: List[RobotForListOut] = Field(..., description="Список роботов")

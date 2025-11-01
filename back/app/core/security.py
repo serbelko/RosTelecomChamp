@@ -21,6 +21,7 @@ class SecurityManager:
     @staticmethod
     def create_access_token(
         subject: str,
+        token_type: Optional[str] = "access",
         expires_delta: Optional[timedelta] = None
     ) -> str:
         """
@@ -33,7 +34,7 @@ class SecurityManager:
 
         to_encode: dict[str, Any] = {
             "sub":  subject,
-            "type": "access",
+            "type": token_type,
             "iat": int(now.timestamp()),
             "nbf": int(now.timestamp()),
             "exp": int(expire.timestamp()),
