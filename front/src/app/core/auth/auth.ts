@@ -1,9 +1,10 @@
+// src/app/core/auth/auth.ts
 import { Injectable } from '@angular/core';
-import { environment } from '../../../environments/environment';
-import { map, switchMap, tap, catchError } from 'rxjs/operators';
-import { Observable, of, throwError } from 'rxjs';
-import { AuthStore } from './auth.store';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { AuthStore } from './auth.store';
 import { joinUrl } from '../http/url.util';
 
 export interface UserProfile {
@@ -11,32 +12,29 @@ export interface UserProfile {
   name: string;
   role: 'operator' | 'admin' | 'viewer';
 }
-
 export interface LoginRequest {
   email: string;
   password: string;
   remember?: boolean;
 }
-
 export interface LoginResponse {
   token?: string;
   user?: UserProfile;
 }
-
 export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
 }
 
-// пути без начального слэша, склейка всегда через joinUrl
+// роуты бэка: /api/auth/*
 const LOGIN_PATH = 'auth/login';
 const REGISTER_PATH = 'auth/create';
 const ME_PATH = 'auth/me';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = environment.apiUrl;
+  private readonly baseUrl = environment.apiUrl; // '/api'
 
   constructor(
     private readonly http: HttpClient,
@@ -64,32 +62,35 @@ export class AuthService {
       .pipe(
         switchMap((res) => {
           const token = res.token;
-          if (!token) {
-            return throwError(() => new Error('No token returned from /auth/login'));
-          }
-          const fallbackUser: UserProfile = {
-            id: 'me',
-            name: (payload.email && payload.email.split('@')[0]) || 'user',
-            role: 'operator',
-          };
-          this.store.setSession(token, res.user ?? fallbackUser);
+          if (!token) return throwError(() => new Error('No token returned from /api/auth/login'));
           try {
             localStorage.setItem('auth_token', token);
           } catch {}
-
-          return this.http
-            .get<UserProfile>(joinUrl(this.baseUrl, ME_PATH), this.authHeaders(token))
-            .pipe(
-              tap((profile) => this.store.setSession(token, profile)),
-              map(() => void 0),
-              catchError(() => of(void 0)),
-            );
+          const fallbackUser: UserProfile = {
+            id: 'me',
+            name: payload.email?.split('@')[0] || 'user',
+            role: 'operator',
+          };
+          return this.http.get<any>(joinUrl(this.baseUrl, ME_PATH), this.authHeaders(token)).pipe(
+            map((raw) => ({
+              id: raw?.user_id ?? 'me',
+              name: raw?.claims?.email ?? fallbackUser.name,
+              role: 'operator' as const,
+            })),
+            tap((profile) => this.store.setSession(token, profile)),
+            map(() => void 0),
+            catchError(() => {
+              this.store.setSession(token, fallbackUser);
+              return of(void 0);
+            }),
+          );
         }),
       );
   }
 
   register(payload: RegisterRequest): Observable<boolean> {
-    return this.http.post<unknown>(joinUrl(this.baseUrl, REGISTER_PATH), payload).pipe(
+    const body = { email: payload.email, password: payload.password };
+    return this.http.post<unknown>(joinUrl(this.baseUrl, REGISTER_PATH), body).pipe(
       switchMap(() =>
         this.login({ email: payload.email, password: payload.password }).pipe(map(() => true)),
       ),
@@ -99,10 +100,19 @@ export class AuthService {
 
   me(): Observable<UserProfile> {
     const token = this.getToken();
-    return this.http.get<UserProfile>(joinUrl(this.baseUrl, ME_PATH), this.authHeaders(token));
+    return this.http.get<any>(joinUrl(this.baseUrl, ME_PATH), this.authHeaders(token)).pipe(
+      map((raw) => ({
+        id: raw?.user_id ?? 'me',
+        name: raw?.claims?.email ?? 'user',
+        role: 'operator' as const,
+      })),
+    );
   }
 
   logout(): void {
     this.store.clear();
+    try {
+      localStorage.removeItem('auth_token');
+    } catch {}
   }
 }
