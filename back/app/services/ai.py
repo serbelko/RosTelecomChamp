@@ -56,7 +56,7 @@ def _build_user_prompt(period_days: int, products_payload: dict) -> str:
         "3) Рекомендованный заказ\n"
         "\n"
         "Правила:\n"
-        "- Только JSON объект. Без текста.\n"
+        "- ТОЛЬКО JSON ОБЪЕКТ. БЕЗ ЛИШНЕГО ТЕКСТА.\n"
         "- Один product_id в predictions на каждый входной товар, порядок совпадает с входом.\n"
         "- Числа неотрицательные. expected_demand и recommended_order_quantity целые. "
         "days_until_stockout с 1 десятичной. Без экспоненциальной записи.\n"

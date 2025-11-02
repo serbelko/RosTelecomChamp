@@ -1,4 +1,4 @@
-# Frontend — RTK IT Hackathon (Warehouse Management Dashboard)
+# Frontend — RTK IT Hackathon
 
 ## 📦 Описание
 
