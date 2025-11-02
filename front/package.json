@@ -1,11 +1,12 @@
 {
   "name": "front",
   "version": "0.0.0",
+  "private": true,
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
+    "start": "ng serve front --proxy-config proxy.conf.js",
+    "build": "ng build front",
+    "watch": "ng build front --watch --configuration development",
     "test": "ng test"
   },
   "prettier": {
@@ -20,7 +21,6 @@
       }
     ]
   },
-  "private": true,
   "dependencies": {
     "@angular/cdk": "^20.2.10",
     "@angular/common": "^20.3.0",

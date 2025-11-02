@@ -1,4 +1,5 @@
 <h2 mat-dialog-title>Загрузка данных инвентаризации</h2>
+
 <div mat-dialog-content>
   <div
     class="drop"
@@ -9,17 +10,22 @@
     (click)="pick(fileInput)"
   >
     <mat-icon>cloud_upload</mat-icon>
-    <div>Перетащите CSV файл сюда или нажмите для выбора</div>
+    <div>Перетащите CSV сюда или нажмите для выбора</div>
     <input #fileInput type="file" accept=".csv" (change)="onFile($event)" />
   </div>
 
   <div class="req">
-    Формат: CSV с разделителем ";" • Кодировка: UTF-8 • Обязательные колонки: product_id,
-    product_name, quantity, zone, date
+    <strong>Формат CSV:</strong>
+    <div><code>robot_id,product_id,quantity,zone,row,shelf,status,scanned_at</code></div>
+    <div>Дата/время в ISO 8601, разделитель — запятая.</div>
+  </div>
+
+  <div *ngIf="file" class="meta">
+    Файл: <strong>{{ file.name }}</strong> ({{ file.size | number }} байт)
   </div>
 
   <mat-progress-bar *ngIf="uploading" mode="determinate" [value]="progress"></mat-progress-bar>
-  <div class="error" *ngIf="error">{{ error }}</div>
+  <div class="err" *ngIf="error">{{ error }}</div>
 
   <table *ngIf="preview.length" class="preview">
     <tr>

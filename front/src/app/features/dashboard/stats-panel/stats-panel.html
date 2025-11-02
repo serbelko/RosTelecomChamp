@@ -21,10 +21,41 @@
     </mat-card>
   </div>
 
-  <h4>Активность роботов (последний час)</h4>
+  <h4>
+    Активность роботов (последний час)
+    <span class="unit">· {{ unit }}</span>
+  </h4>
+
   <div class="chart">
-    <svg [attr.viewBox]="'0 0 300 100'">
-      <polyline [attr.points]="points" fill="none" stroke="currentColor" stroke-width="2" />
+    <!-- viewBox совпадает с W × H в .ts -->
+    <svg viewBox="0 0 300 120" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-opacity="0.22" />
+          <stop offset="100%" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+
+      <!-- сетка с подписями -->
+      <g class="grid">
+        <g *ngFor="let y of gridY; let i = index">
+          <line x1="0" [attr.y1]="y" x2="300" [attr.y2]="y"></line>
+          <text class="tick" x="2" [attr.y]="y - 2">{{ gridLbl[i] }}</text>
+        </g>
+      </g>
+
+      <!-- заливка -->
+      <polygon [attr.points]="areaPoints" fill="url(#areaGrad)"></polygon>
+
+      <!-- линия -->
+      <polyline
+        [attr.points]="points"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
     </svg>
   </div>
 </mat-card>

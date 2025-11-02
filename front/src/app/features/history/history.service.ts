@@ -51,13 +51,19 @@ export interface HistorySummary {
 export class HistoryService {
   constructor(private http: HttpClient) {}
 
-  list(filters: HistoryFilters): Observable<HistoryPage> {
+    list(filters: HistoryFilters): Observable<HistoryPage> {
     let params = new HttpParams();
-    if (filters.from) params = params.set('dt_from', filters.from);
-    if (filters.to) params = params.set('dt_to', filters.to);
-    (filters.zones ?? []).forEach((z) => (params = params.append('zones', z)));
-    (filters.status ?? []).forEach((s) => (params = params.append('statuses', s)));
-    if (filters.query) params = params.set('query', filters.query);
+
+    // было: dt_from / dt_to
+    if (filters.from) params = params.set('from', filters.from);
+    if (filters.to) params = params.set('to', filters.to);
+
+    // было: массив zones/statuses. Бэк принимает по одному значению.
+    const zone = (filters.zones && filters.zones.length > 0) ? filters.zones[0] : undefined;
+    if (zone) params = params.set('zone', zone);
+
+    const st = (filters.status && filters.status.length > 0) ? filters.status[0] : undefined;
+    if (st) params = params.set('status', st); // OK | LOW_STOCK | CRITICAL
 
     if (filters.sort) {
       const [field, dir] = filters.sort.split(':');
@@ -68,25 +74,26 @@ export class HistoryService {
     const pageSize = filters.pageSize ?? 20;
     params = params.set('limit', pageSize).set('offset', String((page - 1) * pageSize));
 
-    // BASE уже содержит /api
+    // BASE теперь '/api'
     return this.http.get<any>(`${BASE}/inventory/history`, { params }).pipe(
       map((res) => ({
         total: res.total,
-        items: (res.items ?? []).map((r: any) => ({
-          id: r.id,
-          productId: r.product_id,
-          productName: r.product_name,
-          quantity: Number(r.quantity ?? 0),
-          zone: r.zone,
-          row: r.row ?? null,
-          shelf: r.shelf ?? null,
-          status: r.status as 'OK' | 'LOW_STOCK' | 'CRITICAL',
-          scannedAt: r.scanned_at,
+        items: (res.items ?? []).map((x: any) => ({
+          id: x.id,
+          productId: x.product_id,
+          productName: x.product_name,
+          quantity: x.quantity,
+          zone: x.zone,
+          row: x.row,
+          shelf: x.shelf,
+          status: x.status,
+          scannedAt: x.scanned_at,
         })),
-        pagination: res.pagination,
+        pagination: { limit: res.pagination?.limit ?? pageSize, offset: res.pagination?.offset ?? 0 },
       })),
     );
   }
+
 
   /**
    * Клиентская агрегация тренда по дням (YYYY-MM-DD) и по SKU.

@@ -1,13 +1,22 @@
+<!-- src/app/features/dashboard/warehouse-map/warehouse-map.html -->
 <mat-card class="card">
   <div class="toolbar">
     <div class="left">
-      <button mat-mini-fab (click)="zoomIn()">+</button>
-      <button mat-mini-fab (click)="zoomOut()">−</button>
+      <button mat-mini-fab (click)="zoomIn()" aria-label="Zoom in">+</button>
+      <button mat-mini-fab (click)="zoomOut()" aria-label="Zoom out">−</button>
       <button mat-stroked-button (click)="reset()">Центр</button>
     </div>
+
     <div class="legend">
       <span class="r r-ok"></span><span>активный</span> <span class="r r-low"></span
       ><span>low battery</span> <span class="r r-off"></span><span>offline</span>
+    </div>
+
+    <div class="right">
+      <button mat-flat-button color="primary" (click)="openUploadDialog()">
+        <mat-icon style="margin-right: 6px">cloud_upload</mat-icon>
+        Загрузить CSV
+      </button>
     </div>
   </div>
 
@@ -26,46 +35,62 @@
       class="canvas"
       [style.transform]="'translate(' + offsetX + 'px,' + offsetY + 'px) scale(' + scale + ')'"
     >
-      <!-- ВЕРХНЯЯ строка букв, далее 50 нормальных строк -->
       <svg
         class="svg"
         [attr.viewBox]="'0 0 ' + mapWidth + ' ' + mapHeight"
         preserveAspectRatio="xMinYMin meet"
       >
-        <!-- Буквы A..Z в верхнем поле -->
+        <!-- буквы -->
         <g class="letters">
           <ng-container *ngFor="let c of cols; index as ci">
             <text [attr.x]="leftPad + ci * cell + 4" [attr.y]="12">{{ c }}</text>
           </ng-container>
         </g>
 
-        <!-- Сетка: вертикали начинаются от topPad, горизонтали каждые cell -->
+        <!-- сетка и номера строк -->
         <g class="grid">
-          <!-- вертикали -->
-          <ng-container *ngFor="let c of cols; index as ci">
+          <ng-container *ngFor="let _ of cols; index as ci">
             <line
               [attr.x1]="leftPad + ci * cell"
               [attr.y1]="topPad"
               [attr.x2]="leftPad + ci * cell"
-              [attr.y2]="mapHeight"
-            ></line>
+              [attr.y2]="topPad + rows.length * cell"
+              stroke="#dfe5f1"
+              stroke-width="1"
+            />
           </ng-container>
 
-          <!-- горизонтали + номера строк 1..50 -->
-          <ng-container *ngFor="let r of rows; index as i">
+          <ng-container *ngFor="let r of rows; index as ri">
+            <text [attr.x]="2" [attr.y]="topPad + (ri + 0.7) * cell">{{ r }}</text>
             <line
               [attr.x1]="leftPad"
-              [attr.y1]="topPad + i * cell"
-              [attr.x2]="mapWidth"
-              [attr.y2]="topPad + i * cell"
-            ></line>
-            <text text-anchor="end" [attr.x]="leftPad - 4" [attr.y]="topPad + i * cell + 12">
-              {{ r }}
-            </text>
+              [attr.y1]="topPad + ri * cell"
+              [attr.x2]="leftPad + cols.length * cell"
+              [attr.y2]="topPad + ri * cell"
+              stroke="#e7ecf5"
+              stroke-width="1"
+            />
           </ng-container>
+
+          <line
+            [attr.x1]="leftPad + cols.length * cell"
+            [attr.y1]="topPad"
+            [attr.x2]="leftPad + cols.length * cell"
+            [attr.y2]="topPad + rows.length * cell"
+            stroke="#dfe5f1"
+            stroke-width="1"
+          />
+          <line
+            [attr.x1]="leftPad"
+            [attr.y1]="topPad + rows.length * cell"
+            [attr.x2]="leftPad + cols.length * cell"
+            [attr.y2]="topPad + rows.length * cell"
+            stroke="#dfe5f1"
+            stroke-width="1"
+          />
         </g>
 
-        <!-- Зоны: внутри 50 реальных строк -->
+        <!-- heatmap зон -->
         <g class="zones">
           <ng-container *ngFor="let z of zones">
             <rect
@@ -77,25 +102,53 @@
               opacity="0.18"
               rx="3"
               ry="3"
-            ></rect>
+            />
           </ng-container>
         </g>
 
-        <!-- Роботы: тоже внутри 50 строк -->
+        <!-- роботы -->
         <g class="robots">
           <ng-container *ngFor="let r of robots">
-            <g class="robot" [attr.transform]="'translate(' + r.x + ',' + r.y + ')'">
-              <circle r="10" fill="#fff"></circle>
-              <circle r="8.2" [attr.fill]="robotColor(r.status)"></circle>
-              <text y="4" text-anchor="middle" font-size="9" fill="#fff">{{ r.id }}</text>
-              <title>
-                ID: {{ r.id }} &#10;Батарея: {{ r.battery }}% &#10;Обновлено:
-                {{ r.updatedAt }} &#10;Зона: {{ r.zone }}
-              </title>
+            <g
+              class="robot"
+              [attr.transform]="'translate(' + r.px + ',' + r.py + ')'"
+              (mouseenter)="showTip($event, r)"
+              (mousemove)="moveTip($event)"
+              (mouseleave)="hideTip()"
+            >
+              <circle [attr.r]="r.dotR + 2" fill="#fff"></circle>
+              <circle [attr.r]="r.dotR" [attr.fill]="robotColor(r.status)"></circle>
+              <text
+                *ngIf="r.label"
+                y="3"
+                text-anchor="middle"
+                [attr.font-size]="fontSize(r)"
+                fill="#fff"
+              >
+                {{ r.label }}
+              </text>
             </g>
           </ng-container>
         </g>
       </svg>
+    </div>
+
+    <!-- тултип -->
+    <div
+      class="tooltip"
+      *ngIf="tipVisible && tipRobot"
+      [style.left.px]="tipX"
+      [style.top.px]="tipY"
+    >
+      <div class="tip-id">ID: {{ tipRobot.id }}</div>
+      <div>Зона: {{ tipRobot.zone }}</div>
+      <div>Батарея: {{ tipRobot.battery }}%</div>
+      <div>Обновлено: {{ fmtUpdated(tipRobot.updatedAt) }}</div>
+      <div
+        class="status"
+        [style.background]="robotColor(tipRobot.status)"
+        title="{{ tipRobot.status }}"
+      ></div>
     </div>
   </div>
 </mat-card>

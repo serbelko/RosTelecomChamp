@@ -1,20 +1,18 @@
-// proxy.conf.js
-const { URL } = require('url');
-
+// front/proxy.conf.js
 module.exports = [
-  // HTTP API -> :8000
+  // Все REST под /api уходит на бекенд без переписывания
   {
-    context: ['/api'],
+    context: ['/api', '/docs', '/openapi.json'],
     target: 'http://localhost:8000',
     changeOrigin: true,
     ws: false,
     logLevel: 'debug',
   },
 
-  // WebSocket -> :8000
+  // WebSocket под /ws (перекладываем ?token= в Authorization)
   {
     context: ['/ws'],
-    target: 'ws://localhost:8000',
+    target: 'http://localhost:8000',
     changeOrigin: true,
     ws: true,
     logLevel: 'debug',
@@ -23,10 +21,9 @@ module.exports = [
       const u = new URL(path, 'http://localhost'); // /ws/notifications?token=...
       const token = u.searchParams.get('token');
       if (token) {
-        req.headers = req.headers || {};
-        req.headers['authorization'] = `Bearer ${token}`;
+        req.headers = { ...(req.headers || {}), authorization: `Bearer ${token}` };
       }
-      return u.pathname; // "/ws/notifications" — query срезаем
+      return u.pathname; // оставляем путь /ws/notifications
     },
   },
 ];
