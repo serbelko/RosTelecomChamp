@@ -1,3 +1,4 @@
+# app/services/robot.py
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -7,6 +8,9 @@ import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.repo.robot import RobotRepository
+# ВАЖНО: путь импорта должен совпадать с реальным местом файла!
+# Если файл лежит в app/repositories/inventory_history.py, то импорт такой:
+# from app.repositories.inventory_history import InventoryHistoryRepository
 from app.repo.inventory import InventoryHistoryRepository
 from app.repo.product import ProductRepository
 from app.core.security import SecurityManager
@@ -33,12 +37,12 @@ class RobotService:
 
     async def process_robot_data(self, robot: RobotBase) -> Dict[str, Any]:
         """
-        Обработка данных робота в одной транзакции:
-        1) upsert робота
-        2) ensure products
-        3) batch insert в inventory_history
-        4) commit/rollback управляет контекст begin()
-        5) WS-ивенты после коммита
+        Транзакционно:
+          1) upsert робота
+          2) ensure products
+          3) batch insert inventory_history
+        Коммит/роллбек делает контекст session.begin().
+        WS-ивенты отправляем после успешного коммита.
         """
         scanned_at_ts: datetime = robot.last_update or datetime.now(timezone.utc)
         zone = robot.location.zone
@@ -49,40 +53,29 @@ class RobotService:
         logger.info(
             "robot.ingest_start",
             robot_id=robot.robot_id,
-            zone=zone,
-            row=row_number,
-            shelf=shelf_number,
-            battery=robot.battery_level,
-            scans=len(scan_results),
+            zone=zone, row=row_number, shelf=shelf_number,
+            battery=robot.battery_level, scans=len(scan_results),
         )
 
         inserted_records_count = 0
-        session = self.history_repo.session  # единая сессия для всех repo
 
-        # убедимся, что product_repo использует ту же сессию
-        if getattr(self.product_repo, "session", None) is not session:
-            self.product_repo.session = session
-        if getattr(self.robot_repo, "session", None) is not session:
-            # если RobotRepository тоже хранит ссылку — синхронизируем
-            try:
-                self.robot_repo.session = session
-            except Exception:
-                pass
+        # ЕДИНАЯ сессия для всех репозиториев
+        session = self.history_repo.session
+        self.product_repo.session = session
+        self.robot_repo.session = session
 
         try:
-            # единый транзакционный блок
             async with session.begin():
                 # 1) upsert робота
                 robot_db, created_flag = await self.robot_repo.upsert_robot(robot)
-                # гарантируем, что запись робота видна последующим FK-вставкам
+                # важно: сделать запись робота видимой для FK
                 await session.flush()
 
-                # 2) ensure products (для дальнейших FK на products)
+                # 2) ensure products
                 products_map: Dict[str, str] = {}
                 for scan in scan_results:
-                    if not scan.product_id:
-                        continue
-                    products_map[scan.product_id] = scan.product_name or scan.product_id
+                    if scan.product_id:
+                        products_map[scan.product_id] = scan.product_name or scan.product_id
 
                 if products_map:
                     await self.product_repo.ensure_products_exist(products_map)
@@ -95,7 +88,7 @@ class RobotService:
                         status_norm = item.status.upper() if item.status else None
                         records_to_create.append(
                             InventoryRecordCreate(
-                                robot_id=robot.robot_id,
+                                robot_id=robot_db.robot_id,  # используем фактическое значение из БД
                                 product_id=item.product_id,
                                 quantity=item.quantity,
                                 zone=zone,
@@ -108,16 +101,16 @@ class RobotService:
                     await self.history_repo.create_many(records_to_create)
                     inserted_records_count = len(records_to_create)
 
-            # === Вне транзакции: WS-события ===
+            # === ВНЕ транзакции: WS-события ===
             try:
                 await notify_robot_update({
-                    "robot_id": robot.robot_id,
+                    "robot_id": robot_db.robot_id,
                     "battery_level": robot.battery_level,
                     "zone": zone,
                     "row": row_number,
                     "shelf": shelf_number,
-                    "status": robot.status or "active",
-                    "last_update": scanned_at_ts.isoformat(),
+                    "status": robot_db.status or "active",
+                    "last_update": (robot_db.last_update or scanned_at_ts).isoformat(),
                     "next_checkpoint": robot.next_checkpoint,
                 })
             except Exception as e:
@@ -150,13 +143,13 @@ class RobotService:
 
             response = {
                 "robot": {
-                    "robot_id": robot.robot_id,
+                    "robot_id": robot_db.robot_id,
                     "battery_level": robot.battery_level,
                     "zone": zone,
                     "row": row_number,
                     "shelf": shelf_number,
-                    "status": robot.status,
-                    "last_update": scanned_at_ts.isoformat(),
+                    "status": robot_db.status,
+                    "last_update": (robot_db.last_update or scanned_at_ts).isoformat(),
                 },
                 "ingested_records": inserted_records_count,
                 "created_new_robot": created_flag,
@@ -164,22 +157,16 @@ class RobotService:
 
             logger.info(
                 "robot.ingest_done",
-                robot_id=robot.robot_id,
+                robot_id=robot_db.robot_id,
                 created_new_robot=created_flag,
                 ingested_records=inserted_records_count,
             )
             return response
 
         except SQLAlchemyError as e:
-            # rollback сделает begin() сам, но залогируем причину
             logger.exception("robot.ingest_failed", robot_id=robot.robot_id, error=str(e))
             raise RuntimeError("Failed to process robot data transactionally") from e
-        finally:
-            # КРИТИЧЕСКОЕ: вернуть соединение в пул и закрыть Session
-            try:
-                await session.close()
-            except Exception:
-                pass
+        # НЕТ session.close(): управление жизненным циклом — у DI/Depends
 
     async def register_robot(self, data: RobotRegisterRequest) -> RobotRegisterResponse:
         zone = data.zone or "A"
@@ -200,12 +187,7 @@ class RobotService:
         )
 
         session = self.history_repo.session
-        # синхронизируем на всякий случай
-        if getattr(self.robot_repo, "session", None) is not session:
-            try:
-                self.robot_repo.session = session
-            except Exception:
-                pass
+        self.robot_repo.session = session  # жёсткое выравнивание
 
         try:
             async with session.begin():
@@ -227,26 +209,13 @@ class RobotService:
         except SQLAlchemyError as e:
             logger.exception("robot.register_failed", robot_id=data.robot_id, error=str(e))
             raise RuntimeError("Failed to register robot") from e
-        finally:
-            try:
-                await session.close()
-            except Exception:
-                pass
+        # НЕТ session.close()
 
     async def get_all_robots(self) -> RobotsListResponse:
         """
-        Чтение: тоже завершим сессию после использования, чтобы не держать коннект.
+        Возвращает компактный список всех роботов.
         """
-        # Предпочтём сессию из robot_repo, если у него она есть
-        session = getattr(self.robot_repo, "session", None) or getattr(self.history_repo, "session", None)
-        try:
-            rows = await self.robot_repo.get_all()
-            # get_all должен возвращать dict-подобные строки с полями RobotOut
-            items: List[RobotForListOut] = [RobotForListOut(**row) for row in rows]
-            return RobotsListResponse(total=len(items), items=items)
-        finally:
-            if session is not None:
-                try:
-                    await session.close()
-                except Exception:
-                    pass
+        # Сессионный цикл управляется DI, вручную не закрываем
+        rows = await self.robot_repo.get_all()
+        items: List[RobotForListOut] = [RobotForListOut(**row) for row in rows]
+        return RobotsListResponse(total=len(items), items=items)

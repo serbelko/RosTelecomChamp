@@ -56,7 +56,7 @@ class Container(containers.DeclarativeContainer):
 
     robot_repository = providers.Factory(
         RobotRepository,
-        db=async_session,
+        session=async_session,
     )
 
     product_repository = providers.Factory(
