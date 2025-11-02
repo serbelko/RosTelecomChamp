@@ -1,3 +1,4 @@
+// src/app/core/ws/ws.ts
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { BehaviorSubject, Subject, Observable, timer } from 'rxjs';
@@ -5,27 +6,53 @@ import { takeUntil } from 'rxjs/operators';
 
 export type WsStatus = 'connected' | 'disconnected' | 'reconnecting';
 
+function joinUrl(base: string, path: string): string {
+  return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
+}
+
+function resolveWsUrl(base: string): string {
+  // dev: base = "/ws" -> "ws://<host>/ws"
+  if (base.startsWith('/')) {
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${scheme}://${window.location.host}${base}`;
+  }
+  // prod: base = "ws://host/ws" или "http://host/ws"
+  if (/^https?:\/\//i.test(base)) return base.replace(/^http/i, 'ws');
+  return base;
+}
+
 @Injectable({ providedIn: 'root' })
 export class WsService {
   private socket?: WebSocket;
   private stop$ = new Subject<void>();
+
   private statusSub = new BehaviorSubject<WsStatus>('disconnected');
-  status$ = this.statusSub.asObservable();
+  readonly status$ = this.statusSub.asObservable();
 
   private msgSub = new Subject<any>();
-  messages$ = this.msgSub.asObservable();
+  readonly messages$ = this.msgSub.asObservable();
 
-  connect(path: string): Observable<any> {
-    this.stop$.next();
+  private backoffMs = 1000;
+
+  /**
+   * Подключается к относительному пути WS-эндпоинта,
+   * например: "notifications" (НЕ указывать "/ws/..." — префикс /ws уже в environment.wsUrl)
+   */
+  connect(path: string = 'notifications'): Observable<any> {
+    // Закрываем прежнее подключение/таймеры
+    this.disconnect();
+
+    // База от окружения: dev -> ws://localhost:4200/ws, prod -> ws://localhost:8000/ws
+    const base = resolveWsUrl(environment.wsUrl).replace(/\/+$/, '');
+
+    // Защита от двойного "/ws": выкинем ведущий "ws/" у path, если вдруг передали
+    const cleanedPath = path.replace(/^\/+/, '').replace(/^ws\/+/i, '');
+    const endpoint = joinUrl(base, cleanedPath);
 
     const token = localStorage.getItem('auth_token') ?? '';
-    const base = (environment.wsUrl || '').replace(/\/+$/, '');
-    const p = path.startsWith('/') ? path : `/${path}`;
-    // важно: ходим на :4200, чтобы сработал dev-proxy и добавил Authorization
-    const url = `${base}${p}?token=${encodeURIComponent(token)}`;
+    const url = token ? `${endpoint}?token=${encodeURIComponent(token)}` : endpoint;
 
     try {
-      // Никаких подпротоколов — всё через proxy
       this.socket = new WebSocket(url);
     } catch (e) {
       console.error('[WS] constructor error:', e);
@@ -35,7 +62,8 @@ export class WsService {
 
     this.socket.onopen = () => {
       this.statusSub.next('connected');
-      // опциональный hello
+      this.backoffMs = 1000;
+      // опционально: hello
       try {
         this.socket?.send(JSON.stringify({ type: 'hello' }));
       } catch {}
@@ -43,36 +71,34 @@ export class WsService {
 
     this.socket.onmessage = (ev) => {
       try {
-        const data = JSON.parse(ev.data);
-        this.msgSub.next(data);
+        this.msgSub.next(JSON.parse(ev.data));
       } catch {
         this.msgSub.next(ev.data);
       }
     };
 
-    this.socket.onclose = (ev) => {
-      this.statusSub.next('disconnected');
-      if (ev.code !== 1000) this.scheduleReconnect(path);
-      console.warn('[WS] closed', ev.code, ev.reason);
+    this.socket.onerror = (ev) => {
+      console.error('[WS] error', ev);
+      // onerror обычно следует за onclose, но на всякий случай инициируем реконнект
     };
 
-    this.socket.onerror = (ev) => {
+    this.socket.onclose = (ev) => {
       this.statusSub.next('disconnected');
-      console.error('[WS] error', ev);
-      this.scheduleReconnect(path);
+      console.warn('[WS] closed', ev.code, ev.reason || '');
+      if (ev.code !== 1000) this.scheduleReconnect(path);
     };
 
     return this.messages$;
   }
 
-  send(msg: any) {
+  send(msg: any): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(msg));
     }
   }
 
-  disconnect() {
-    this.stop$.next();
+  disconnect(): void {
+    this.stop$.next(); // отмена таймеров реконнекта
     try {
       this.socket?.close(1000, 'client disconnect');
     } catch {}
@@ -80,9 +106,12 @@ export class WsService {
     this.statusSub.next('disconnected');
   }
 
-  private scheduleReconnect(path: string) {
+  private scheduleReconnect(path: string): void {
     this.statusSub.next('reconnecting');
-    timer(3000)
+    const delay = this.backoffMs;
+    this.backoffMs = Math.min(this.backoffMs * 2, 15000);
+
+    timer(delay)
       .pipe(takeUntil(this.stop$))
       .subscribe(() => {
         if (this.statusSub.value !== 'connected') this.connect(path);

@@ -6,7 +6,7 @@ import { StatsPanelComponent } from './stats-panel/stats-panel';
 import { ScansTableComponent } from './scans-table/scans-table';
 import { ForecastPanelComponent } from './ai-forecast/ai-forecast';
 
-import { WsService, WsStatus } from '../../core/realtime/ws';
+import { WsService, WsStatus } from '../../core/realtime/ws'; // ✅ путь к новому WsService
 import { Subscription } from 'rxjs';
 import { DashboardService } from './dashboard.service';
 
@@ -31,18 +31,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private subs = new Subscription();
 
   ngOnInit() {
-    // запустить единый стор (первая загрузка + резервный таймер)
+    // первая загрузка + периодический опрос
     this.dash.start();
 
-    // статус сокета
+    // следим за статусом сокета
     this.subs.add(this.ws.status$.subscribe((s) => (this.wsStatus = s)));
 
-    // подключиться к сокету и на ЛЮБОЕ сообщение — перезагрузить current
+    // подключаемся к WS-уведомлениям
     this.subs.add(
-      this.ws.connect('/ws/notifications').subscribe({
+      this.ws.connect('notifications').subscribe({
         next: (_msg) => this.dash.forceRefresh(),
         error: () => {
-          /* молча, стор продолжит опрос */
+          // стор продолжит опрос, если WS временно недоступен
         },
       }),
     );
@@ -50,5 +50,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.subs.unsubscribe();
+    this.ws.disconnect(); // корректно закрываем соединение
   }
 }
