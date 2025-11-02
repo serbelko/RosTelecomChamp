@@ -193,3 +193,67 @@
     }
   }
 }
+
+/* src/app/features/dashboard/warehouse-map/warehouse-map.scss */
+
+/* ...твои существующие стили... */
+
+.viewport {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 40px); /* минус панель инструментов */
+  overflow: hidden;
+  background: #f7f9fc;
+  cursor: grab;
+}
+.viewport:active {
+  cursor: grabbing;
+}
+
+.canvas {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.robots .robot {
+  transition: transform 80ms linear;
+}
+.robots .robot:hover circle[r='10'] {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+/* overlay tooltip */
+.tooltip {
+  position: absolute;
+  z-index: 10;
+  min-width: 160px;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transform: translate(0, 0);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.tooltip .tip-id {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tooltip .status {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border-radius: 50%;
+  margin-top: 6px;
+}

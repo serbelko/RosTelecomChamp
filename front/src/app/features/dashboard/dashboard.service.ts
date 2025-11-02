@@ -1,31 +1,36 @@
 // src/app/features/dashboard/dashboard.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, timer } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 
-// ---- Типы ----
+// ===== Экспортируемые типы, которые используют компоненты =====
 export interface Robot {
   id: string;
+  // индексы сетки: A..Z -> 0..25, 1..50 -> 0..49
   x: number;
   y: number;
   battery: number;
   status: 'active' | 'low' | 'offline';
-  zone: string;
-  updatedAt: string;
+  zone: string; // напр. "A12"
+  updatedAt: string; // ISO
 }
-export interface ZoneStatus {
-  zone: string;
-  robots: number;
+
+export interface ZoneSummary {
+  zone: string; // "A1", "B7", ...
+  robots: number; // число роботов в зоне
 }
+
 export interface Metric {
   name: string;
   value: number;
 }
+
 export interface ActivityPoint {
-  t: string;
+  t: string; // ISO
   v: number;
 }
+
 export interface ScanRow {
   id: number;
   productId: string;
@@ -34,22 +39,24 @@ export interface ScanRow {
   quantity: number;
   scannedAt: string;
 }
+
 export interface ForecastRow {
   productId: string;
   category: string;
   expected: number;
-  stockoutInDays?: number | null;
+  stockoutInDays: number | null;
 }
 
+// ===== Формат ответа бэка для /api/dashboard/current =====
 interface DashboardResponse {
   robots: Array<{
-    id: string;
-    x: number;
-    y: number;
-    battery: number;
-    status: 'active' | 'low' | 'offline';
-    zone: string;
-    updated_at: string;
+    robot_id: string;
+    status: string;
+    battery_level: number;
+    last_update: string;
+    zone: string; // 'A'..'Z'
+    row: number; // 1..50
+    shelf: number;
   }>;
   recent_scans: Array<{
     id: number;
@@ -70,19 +77,18 @@ interface DashboardResponse {
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
-  constructor(private http: HttpClient) {}
-
-  // ---- Стор состояния ----
   private robotsSub = new BehaviorSubject<Robot[]>([]);
-  private zonesSub = new BehaviorSubject<ZoneStatus[]>([]);
+  private zonesSub = new BehaviorSubject<ZoneSummary[]>([]);
   private metricsSub = new BehaviorSubject<Metric[]>([]);
   private activitySub = new BehaviorSubject<ActivityPoint[]>([]);
   private scansSub = new BehaviorSubject<ScanRow[]>([]);
 
+  constructor(private readonly http: HttpClient) {}
+
   robots$(): Observable<Robot[]> {
     return this.robotsSub.asObservable();
   }
-  zones$(): Observable<ZoneStatus[]> {
+  zones$(): Observable<ZoneSummary[]> {
     return this.zonesSub.asObservable();
   }
   metrics$(): Observable<Metric[]> {
@@ -95,35 +101,58 @@ export class DashboardService {
     return this.scansSub.asObservable();
   }
 
-  // единая загрузка current → обновить все сабджекты
+  // Разовый опрос состояния дашборда
   private loadOnce(): Observable<void> {
-    // Бэк сейчас реально слушает /api/dashboard/current
     return this.http.get<DashboardResponse>(`/api/dashboard/current`).pipe(
       map((r) => {
-        const robots: Robot[] = (r.robots ?? []).map((x) => ({
-          id: x.id,
-          x: x.x,
-          y: x.y,
-          battery: x.battery,
-          status: x.status,
-          zone: x.zone,
-          updatedAt: x.updated_at,
-        }));
+        // Роботы: переводим (zone,row) в индексы сетки (x,y)
+        const robots: Robot[] = (r.robots ?? []).map((x) => {
+          const colChar = (x.zone ?? 'A').toString().toUpperCase().charCodeAt(0);
+          const ci = Math.max(0, Math.min(25, Number.isFinite(colChar) ? colChar - 65 : 0)); // A=0..Z=25
+          const ri = Math.max(0, Math.min(49, (x.row ?? 1) - 1)); // 1..50 -> 0..49
+
+          const status: Robot['status'] =
+            (x.status ?? '').toLowerCase() === 'offline'
+              ? 'offline'
+              : (x.battery_level ?? 0) < 20
+                ? 'low'
+                : 'active';
+
+          return {
+            id: x.robot_id,
+            x: ci,
+            y: ri,
+            battery: Math.round(Number(x.battery_level ?? 0)),
+            status,
+            zone: `${x.zone ?? 'A'}${x.row ?? ''}`,
+            updatedAt: x.last_update,
+          };
+        });
         this.robotsSub.next(robots);
 
-        const mapz = new Map<string, number>();
-        robots.forEach((rr) => mapz.set(rr.zone, (mapz.get(rr.zone) ?? 0) + 1));
-        this.zonesSub.next(Array.from(mapz, ([zone, robots]) => ({ zone, robots })));
+        // Сводка по зонам (для тепловой карты): агрегируем по "A12"
+        const zoneMap = new Map<string, number>();
+        for (const rbt of robots) {
+          zoneMap.set(rbt.zone, (zoneMap.get(rbt.zone) ?? 0) + 1);
+        }
+        const zones: ZoneSummary[] = Array.from(zoneMap, ([zone, robots]) => ({ zone, robots }));
+        this.zonesSub.next(zones);
 
+        // Метрики
         const m: Metric[] = [
-          { name: 'Всего роботов', value: r.statistics?.total_robots ?? 0 },
-          { name: 'Оффлайн', value: r.statistics?.offline_robots ?? 0 },
+          { name: 'Всего роботов', value: r.statistics?.total_robots ?? robots.length },
+          {
+            name: 'Оффлайн',
+            value:
+              r.statistics?.offline_robots ?? robots.filter((x) => x.status === 'offline').length,
+          },
           { name: 'Критичных SKU', value: r.statistics?.critical_items ?? 0 },
           { name: 'Мало остатков', value: r.statistics?.low_stock_items ?? 0 },
           { name: 'Сканов за час', value: r.statistics?.scans_last_hour ?? 0 },
         ];
         this.metricsSub.next(m);
 
+        // Активность
         const pt: ActivityPoint = {
           t: new Date().toISOString(),
           v: r.statistics?.scans_last_hour ?? 0,
@@ -131,6 +160,7 @@ export class DashboardService {
         const prev = this.activitySub.getValue();
         this.activitySub.next([...prev, pt].slice(-60));
 
+        // Последние сканы
         const scans: ScanRow[] = (r.recent_scans ?? []).map((s) => ({
           id: s.id,
           productId: s.product_id,
@@ -145,6 +175,7 @@ export class DashboardService {
     );
   }
 
+  // Публичные методы запуска
   forceRefresh(): void {
     this.loadOnce().subscribe();
   }
@@ -156,25 +187,27 @@ export class DashboardService {
       .subscribe();
   }
 
-  // ------- AI FORECAST -------
-  forecast$(): Observable<ForecastRow[]> {
+  // ------- Прогноз (кнопка "Обновить прогноз") -------
+  /**
+   * Сразу обращаемся к POST /api/ai/predict (на бэке реализовано),
+   * чтобы избежать 404 на несуществующий GET /api/ai/forecast.
+   * Возвращаем унифицированный массив ForecastRow.
+   */
+  forecast$(periodDays = 7, categories?: string[]): Observable<ForecastRow[]> {
+    const body: any = { period_days: periodDays };
+    if (categories?.length) body.categories = categories;
+
     const mapResp = (res: any): ForecastRow[] =>
       (res?.predictions ?? res ?? []).map((p: any) => ({
-        productId: p.product_id ?? p.productId ?? p.sku ?? '',
-        category: p.category ?? p.itemName ?? '',
-        expected: Number(p.expected_demand ?? p.expected ?? p.demand ?? 0),
+        productId: p.product_id ?? p.productId ?? p.sku ?? p.id ?? '',
+        category: p.category ?? p.itemName ?? p.name ?? '',
+        expected: Number(p.expected_demand ?? p.expected ?? p.forecast ?? p.value ?? p.mean ?? 0),
         stockoutInDays: p.expected_stockout_in_days ?? p.stockoutInDays ?? null,
       }));
 
-    // На бэке нет /v1; актуальные ручки — /api/ai/forecast и /api/ai/predict
-    return this.http.get<any>(`/api/ai/forecast`, { params: new HttpParams().set('days', 7) }).pipe(
+    return this.http.post<any>(`/api/ai/predict`, body).pipe(
       map(mapResp),
-      catchError(() =>
-        this.http.post<any>(`/api/ai/predict`, { period_days: 7 }).pipe(
-          map(mapResp),
-          catchError(() => of([] as ForecastRow[])),
-        ),
-      ),
+      catchError(() => of([] as ForecastRow[])),
     );
   }
 }

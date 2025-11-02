@@ -5,13 +5,26 @@
   </div>
 
   <nav class="nav">
-    <a mat-button routerLink="/dashboard" routerLinkActive="active">Текущий мониторинг</a>
-    <a mat-button routerLink="/history" routerLinkActive="active">Исторические данные</a>
+    <a
+      mat-button
+      routerLink="/dashboard"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Текущий мониторинг
+    </a>
+
+    <a
+      mat-button
+      routerLink="/history"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Исторические данные
+    </a>
   </nav>
 
   <span class="spacer"></span>
-
-  <button mat-stroked-button color="accent" (click)="uploadCsv()">Загрузить CSV</button>
 
   <div class="user" *ngIf="store.user as user">
     <span>{{ user.name }} · {{ user.role }}</span>

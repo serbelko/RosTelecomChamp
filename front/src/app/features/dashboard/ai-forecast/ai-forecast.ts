@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,27 +22,35 @@ interface ForecastVm {
   templateUrl: './ai-forecast.html',
   styleUrls: ['./ai-forecast.scss'],
 })
-export class ForecastPanelComponent {
+export class ForecastPanelComponent implements OnInit {
   private api = inject(DashboardService);
-  rows: ForecastVm[] = [];
-  loading = false;
 
-  // ВАЖНО: не вызываем загрузку в конструкторе/OnInit — чтобы избежать 404 при старте
-  refresh() {
+  loading = false;
+  rows: ForecastVm[] = [];
+
+  ngOnInit(): void {
+    this.refresh();
+  }
+
+  refresh(): void {
     this.loading = true;
     this.api
-      .forecast$()
+      .forecast$(7)
       .pipe(
-        map((data: ForecastRow[]) =>
-          (data ?? []).map((r) => {
+        map((rows: ForecastRow[]) =>
+          rows.map((r) => {
             const depletionDate =
-              r.stockoutInDays != null
-                ? new Date(Date.now() + r.stockoutInDays * 24 * 3600 * 1000)
+              typeof r.stockoutInDays === 'number' && isFinite(r.stockoutInDays)
+                ? new Date(Date.now() + r.stockoutInDays * 24 * 60 * 60 * 1000)
                 : null;
-            const recommended = Math.max(Math.round(r.expected * 1.1), 1);
-            const confidence = 90; // фикс для UI
+
+            // простая эвристика закупки
+            const recommended = Math.max(0, Math.ceil(r.expected * 0.6));
+            // на бэке приходит общий confidence, без детализации по sku - для UI поставим константу
+            const confidence = 85;
+
             return {
-              itemName: r.category,
+              itemName: r.category || 'Товар',
               sku: r.productId,
               stock: Math.round(r.expected / 2),
               depletionDate,
