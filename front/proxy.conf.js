@@ -1,9 +1,4 @@
 // proxy.conf.js
-// Работает и для HTTP, и для WebSocket.
-// Для WS: клиент стучится на ws://localhost:4200/ws/notifications?token=JWT
-// Прокси вырезает token из query и кладёт его в Authorization,
-// затем гонит на ws://localhost:8000/ws/notifications (без query).
-
 const { URL } = require('url');
 
 module.exports = [
@@ -23,25 +18,15 @@ module.exports = [
     changeOrigin: true,
     ws: true,
     logLevel: 'debug',
-
-    // Вешаем токен в Authorization: Bearer <jwt>
-    onProxyReqWs: (proxyReq, req) => {
-      // req.url вида: /ws/notifications?token=...
-      const u = new URL(req.url, 'http://localhost');
+    pathRewrite: (path, req) => {
+      const { URL } = require('url');
+      const u = new URL(path, 'http://localhost'); // /ws/notifications?token=...
       const token = u.searchParams.get('token');
-
       if (token) {
-        proxyReq.setHeader('Authorization', `Bearer ${token}`);
+        req.headers = req.headers || {};
+        req.headers['authorization'] = `Bearer ${token}`;
       }
-
-      // Уберём query у пути при проксировании
-      const pathNoQuery = u.pathname;
-      // http-proxy задаёт путь через .path
-      if (proxyReq.path) proxyReq.path = pathNoQuery;
-      // а для некоторых версий — через _headers:host + :path
-      if (proxyReq._headers) {
-        // ничего не делаем, достаточно proxyReq.path
-      }
+      return u.pathname; // "/ws/notifications" — query срезаем
     },
   },
 ];
