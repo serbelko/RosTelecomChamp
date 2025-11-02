@@ -1,6 +1,6 @@
+// src/environments/environment.ts
 export const environment = {
   production: false,
-  apiUrl: '/api', // идём через dev-proxy на :8000
-  wsUrl: '/ws', // WS тоже через dev-proxy
-  debug: true,
+  apiUrl: 'http://localhost:8000/api', // прямые REST-запросы
+  wsUrl: 'ws://localhost:8000/ws', // прямое WS соединение
 };

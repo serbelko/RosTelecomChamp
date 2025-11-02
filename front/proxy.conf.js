@@ -18,15 +18,15 @@ module.exports = [
     changeOrigin: true,
     ws: true,
     logLevel: 'debug',
-
-    // Перекладываем ?token=JWT в Authorization и срезаем query
-    onProxyReqWs: (proxyReq, req) => {
-      const u = new URL(req.url, 'http://localhost'); // /ws/notifications?token=...
+    pathRewrite: (path, req) => {
+      const { URL } = require('url');
+      const u = new URL(path, 'http://localhost'); // /ws/notifications?token=...
       const token = u.searchParams.get('token');
-      if (token) proxyReq.setHeader('Authorization', `Bearer ${token}`);
-
-      // Критично: переписываем путь апстрима без query
-      req.url = u.pathname; // например "/ws/notifications"
+      if (token) {
+        req.headers = req.headers || {};
+        req.headers['authorization'] = `Bearer ${token}`;
+      }
+      return u.pathname; // "/ws/notifications" — query срезаем
     },
   },
 ];
