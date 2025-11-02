@@ -1,30 +1,37 @@
 <mat-card class="card">
-  <h4>Последние сканы</h4>
-
-  <div class="table-wrap" *ngIf="rows?.length; else empty">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Время</th>
-          <th>SKU</th>
-          <th>Название</th>
-          <th>Зона</th>
-          <th class="num">Кол-во</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let r of rows; trackBy: trackById">
-          <td>{{ r.scannedAt | date: 'short' }}</td>
-          <td>{{ r.productId }}</td>
-          <td>{{ r.productName }}</td>
-          <td>{{ r.zone }}</td>
-          <td class="num">{{ r.quantity }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="head">
+    <h4>Последние сканы</h4>
+    <button class="pause" type="button" (click)="togglePause()">
+      {{ paused() ? '▶ Продолжить' : '⏸ Пауза' }}
+    </button>
   </div>
 
-  <ng-template #empty>
-    <div class="empty">Нет данных для отображения</div>
-  </ng-template>
+  <div class="scans-head">
+    <div>Время</div>
+    <div>ID робота</div>
+    <div>Зона</div>
+    <div>Товар</div>
+    <div>Кол-во</div>
+    <div>Статус</div>
+  </div>
+
+  <div class="scans-body">
+    <div class="row" *ngFor="let r of rows; trackBy: trackById">
+      <div>{{ r.scannedAt | date: 'HH:mm:ss' }}</div>
+      <div>{{ r.robotId }}</div>
+      <div>{{ r.zone }}</div>
+      <div class="name" [title]="r.productName">{{ r.productName }} · {{ r.productId }}</div>
+      <div class="qty">{{ r.quantity }}</div>
+      <div>
+        <span
+          class="badge"
+          [class.ok]="status(r) === 'ok'"
+          [class.low]="status(r) === 'low'"
+          [class.crit]="status(r) === 'crit'"
+        >
+          {{ status(r) === 'ok' ? 'ОК' : status(r) === 'low' ? 'Низкий' : 'Критично' }}
+        </span>
+      </div>
+    </div>
+  </div>
 </mat-card>

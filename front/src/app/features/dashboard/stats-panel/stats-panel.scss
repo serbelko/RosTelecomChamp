@@ -1,44 +1,67 @@
-.card {
-  height: 100%;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.stats-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff7fb;
+  border: 1px solid #ead9f3;
 }
-.cards {
+.kpis {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
 }
 .kpi {
-  padding: 10px;
+  border: 1px solid #ead9f3;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
 }
-.label {
+.kpi-cap {
   font-size: 12px;
-  color: #666;
+  color: #6b6073;
+  margin-bottom: 4px;
 }
-.value {
+.kpi-val {
   font-size: 20px;
+  line-height: 1.2;
+}
+.muted {
+  color: #8a7c97;
+}
+
+.chart-header {
+  font-size: 14px;
   font-weight: 600;
+  margin: 6px 0 4px;
+  color: #2d2038;
 }
-h4 {
-  margin: 0 0 4px 0;
-}
-.unit {
-  font-weight: normal;
-  font-size: 12px;
-  color: #666;
+.chart-wrap {
+  height: 180px;
+  border: 1px solid #ead9f3;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
 }
 .chart {
-  height: 180px;
-  color: #1976d2;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.grid line {
-  stroke: currentColor;
-  opacity: 0.15;
+.grid-line {
+  stroke: #efe5f5;
   stroke-width: 1;
 }
-.tick {
-  fill: #666;
-  font-size: 10px;
+.grid-text {
+  fill: #473a54;
+  font-size: 11px;
+  dominant-baseline: ideographic;
+}
+.line {
+  stroke: #1976d2;
+  stroke-width: 2;
+  fill: none;
+}
+.area {
+  fill: #1976d2;
+  opacity: 0.12;
 }

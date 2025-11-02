@@ -1,6 +1,127 @@
-.history-page {
+.filters-card {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
   gap: 12px;
   padding: 12px;
+  border-radius: 18px;
+  background: #fff6fb;
+
+  .row {
+    display: grid;
+    grid-template-columns: 220px 220px auto 1fr 220px 200px auto;
+    gap: 12px;
+    align-items: center;
+
+    &:first-child {
+      grid-template-columns: 220px 220px auto;
+    }
+
+    .quick {
+      display: flex;
+      gap: 8px;
+    }
+
+    .grow {
+      width: 100%;
+    }
+    .search {
+      min-width: 280px;
+    }
+    .status {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .w100 {
+      width: 140px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      button {
+        border-radius: 12px;
+      }
+    }
+  }
+}
+
+.summary {
+  margin: 12px 0 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+
+  .s-card {
+    padding: 12px 16px;
+    border-radius: 16px;
+    .label {
+      color: #666;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+  }
+}
+
+.table-card {
+  padding: 12px;
+  border-radius: 18px;
+
+  table {
+    width: 100%;
+    th {
+      white-space: nowrap;
+    }
+    td.ellipsis {
+      max-width: 340px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    td.neg {
+      color: #c62828;
+      font-weight: 600;
+    }
+    td.pos {
+      color: #2e7d32;
+      font-weight: 600;
+    }
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    &.ok {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    &.low {
+      background: #fff8e1;
+      color: #f9a825;
+    }
+    &.crit {
+      background: #ffebee;
+      color: #c62828;
+    }
+  }
+
+  .under-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    .picked {
+      color: #666;
+      margin-left: 8px;
+    }
+    button {
+      border-radius: 12px;
+    }
+  }
 }

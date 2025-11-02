@@ -1,11 +1,9 @@
-// src/app/features/history/csv-upload-dialog/csv-upload-dialog.ts
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { HttpEventType } from '@angular/common/http';
 import { HistoryService } from '../history.service';
 
 @Component({
@@ -16,93 +14,87 @@ import { HistoryService } from '../history.service';
   styleUrls: ['./csv-upload-dialog.scss'],
 })
 export class CsvUploadDialogComponent {
-  private readonly api = inject(HistoryService);
-  private readonly ref = inject(MatDialogRef<CsvUploadDialogComponent, boolean>);
+  private api = inject(HistoryService);
+  private ref = inject(MatDialogRef<CsvUploadDialogComponent>);
 
   file: File | null = null;
-  dragging = false;
-
+  preview: string[][] = []; // превью CSV: массив строк, каждая строка — массив ячеек
   uploading = false;
   progress = 0;
-  error: string | null = null;
 
-  preview: string[][] = []; // первые ~10 строк CSV
-
-  dragOver(ev: DragEvent) {
-    ev.preventDefault();
-    this.dragging = true;
-  }
-  dragLeave() {
-    this.dragging = false;
-  }
-  drop(ev: DragEvent) {
-    ev.preventDefault();
-    this.dragging = false;
-    const f = ev.dataTransfer?.files?.[0];
-    if (f) this.setFile(f);
+  close(ok = false): void {
+    this.ref.close(ok);
   }
 
-  pick(input: HTMLInputElement) {
-    input.value = '';
-    input.click();
-  }
-  onFile(ev: Event) {
+  onFileChange(ev: Event): void {
     const input = ev.target as HTMLInputElement;
     const f = input.files?.[0] ?? null;
-    if (f) this.setFile(f);
-  }
-
-  private setFile(f: File) {
-    if (!f.name.toLowerCase().endsWith('.csv')) {
-      this.error = 'Выберите CSV-файл';
-      return;
-    }
-    this.error = null;
     this.file = f;
-    this.readPreview(f);
-  }
+    this.preview = [];
 
-  private readPreview(f: File) {
+    if (!f) return;
+
     const reader = new FileReader();
     reader.onload = () => {
-      const text = String(reader.result || '');
-      const lines = text.split(/\r?\n/).slice(0, 11); // до 10 строк + заголовок
-      this.preview = lines
-        .filter((l) => l.trim().length > 0)
-        .map((l) => l.split(',').map((c) => c.trim()));
+      const text = String(reader.result ?? '');
+      this.preview = this.parseCsvForPreview(text).slice(0, 15); // не спамим, максимум 15 строк
     };
     reader.readAsText(f, 'utf-8');
   }
 
-  upload() {
+  upload(): void {
     if (!this.file || this.uploading) return;
-    this.error = null;
     this.uploading = true;
     this.progress = 0;
 
     this.api.uploadCsv(this.file).subscribe({
-      next: (ev) => {
-        if (ev.type === HttpEventType.UploadProgress && ev.total) {
+      next: (ev: any) => {
+        // HttpEvent типизировать не обязательно здесь
+        if (ev?.type === 1 && typeof ev.total === 'number' && ev.total > 0) {
           this.progress = Math.round((100 * ev.loaded) / ev.total);
         }
-        if (ev.type === HttpEventType.Response) {
-          // ожидаем { success, failed, errors[] }
-          const body = ev.body as any;
-          if (body?.errors?.length) {
-            this.error = `Импорт завершён с ошибками (${body.errors.length}).`;
-          }
+        if (ev?.type === 4) {
+          // HttpResponse
+          this.progress = 100;
           this.uploading = false;
-          this.ref.close(true);
+          this.close(true);
         }
       },
-      error: (err) => {
-        this.error = err?.error?.detail || err?.error?.message || 'Ошибка загрузки';
+      error: () => {
         this.uploading = false;
+        this.progress = 0;
       },
     });
   }
 
-  close() {
-    this.ref.close(false);
+  // очень простой CSV парсер для превью
+  private parseCsvForPreview(text: string): string[][] {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean);
+    return lines.map((line) => this.splitCsvLine(line));
+  }
+
+  private splitCsvLine(line: string): string[] {
+    const out: string[] = [];
+    let cur = '';
+    let q = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (q && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          q = !q;
+        }
+      } else if (ch === ',' && !q) {
+        out.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
   }
 }

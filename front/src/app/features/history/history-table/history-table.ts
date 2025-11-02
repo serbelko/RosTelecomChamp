@@ -68,7 +68,7 @@ export class HistoryTableComponent {
   load() {
     if (!this.filters) return;
     this.loading = true;
-    this.api.list(this.filters).subscribe({
+    this.api.fetchPage(this.filters).subscribe({
       next: (res: any) => {
         this.data = res.items;
         this.total = res.total;

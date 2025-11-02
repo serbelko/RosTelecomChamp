@@ -1,45 +1,35 @@
-<h2 mat-dialog-title>Загрузка данных инвентаризации</h2>
+<h2 mat-dialog-title>Загрузка CSV</h2>
 
-<div mat-dialog-content>
-  <div
-    class="drop"
-    [class.dragging]="dragging"
-    (dragover)="dragOver($event)"
-    (dragleave)="dragLeave()"
-    (drop)="drop($event)"
-    (click)="pick(fileInput)"
-  >
-    <mat-icon>cloud_upload</mat-icon>
-    <div>Перетащите CSV сюда или нажмите для выбора</div>
-    <input #fileInput type="file" accept=".csv" (change)="onFile($event)" />
+<div mat-dialog-content class="content">
+  <input type="file" accept=".csv,text/csv" (change)="onFileChange($event)" />
+
+  <div class="file-info" *ngIf="file">
+    <mat-icon>description</mat-icon>
+    <span>{{ file.name }}</span>
   </div>
 
-  <div class="req">
-    <strong>Формат CSV:</strong>
-    <div><code>robot_id,product_id,quantity,zone,row,shelf,status,scanned_at</code></div>
-    <div>Дата/время в ISO 8601, разделитель — запятая.</div>
-  </div>
-
-  <div *ngIf="file" class="meta">
-    Файл: <strong>{{ file.name }}</strong> ({{ file.size | number }} байт)
+  <div class="preview" *ngIf="preview.length">
+    <div class="hint">Превью первых строк файла</div>
+    <table>
+      <thead>
+        <tr>
+          <th *ngFor="let h of preview[0]; let i = index">#{{ i + 1 }} {{ h }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of preview.slice(1)">
+          <td *ngFor="let c of row">{{ c }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <mat-progress-bar *ngIf="uploading" mode="determinate" [value]="progress"></mat-progress-bar>
-  <div class="err" *ngIf="error">{{ error }}</div>
-
-  <table *ngIf="preview.length" class="preview">
-    <tr>
-      <th *ngFor="let h of preview[0]">{{ h }}</th>
-    </tr>
-    <tr *ngFor="let row of preview.slice(1)">
-      <td *ngFor="let c of row">{{ c }}</td>
-    </tr>
-  </table>
 </div>
 
-<div mat-dialog-actions>
-  <button mat-stroked-button (click)="close()">Отмена</button>
-  <button mat-flat-button color="primary" [disabled]="!file || uploading" (click)="upload()">
-    Загрузить
+<div mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="close(false)" [disabled]="uploading">Отмена</button>
+  <button mat-flat-button color="primary" (click)="upload()" [disabled]="!file || uploading">
+    {{ uploading ? 'Загрузка…' : 'Загрузить' }}
   </button>
 </div>

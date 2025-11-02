@@ -1,6 +1,6 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -10,6 +10,18 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { HistoryFilters } from '../history.service';
+
+type FilterForm = {
+  from: FormControl<Date | null>;
+  to: FormControl<Date | null>;
+  zones: FormControl<string[]>;
+  categories: FormControl<string[]>;
+  statusOK: FormControl<boolean>;
+  statusLOW: FormControl<boolean>;
+  statusCRIT: FormControl<boolean>;
+  query: FormControl<string>;
+  pageSize: FormControl<number>;
+};
 
 @Component({
   selector: 'app-filter-bar',
@@ -29,55 +41,31 @@ import { HistoryFilters } from '../history.service';
   templateUrl: './filter-bar.html',
   styleUrls: ['./filter-bar.scss'],
 })
-export class FilterBarComponent {
-  private fb = inject(FormBuilder);
-
+export class FilterBarComponent implements OnChanges {
   @Input() filters?: HistoryFilters;
   @Output() apply = new EventEmitter<HistoryFilters>();
+  // Переименовал событие, чтобы не конфликтовало с методом
+  @Output() cleared = new EventEmitter<void>();
 
-  zones = [
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-  ];
-  categories = ['Электроника', 'Сетевое', 'Кабель', 'Прочее'];
+  // Списки опций
+  @Input() zonesOptions: string[] = Array.from({ length: 26 }, (_, i) =>
+    String.fromCharCode(65 + i),
+  );
+  @Input() categoryOptions: string[] = ['Электроника', 'Сетевое', 'Кабель', 'Прочее'];
 
-  form = this.fb.group({
-    from: [null as Date | null],
-    to: [null as Date | null],
-    zones: [[] as string[]],
-    categories: [[] as string[]],
-    statusOK: [true],
-    statusLOW: [true], // будет маппиться в LOW_STOCK
-    statusCRIT: [true],
-    query: [''],
-    pageSize: [20],
+  form = new FormGroup<FilterForm>({
+    from: new FormControl<Date | null>(null),
+    to: new FormControl<Date | null>(null),
+    zones: new FormControl<string[]>([], { nonNullable: true }),
+    categories: new FormControl<string[]>([], { nonNullable: true }),
+    statusOK: new FormControl<boolean>(true, { nonNullable: true }),
+    statusLOW: new FormControl<boolean>(true, { nonNullable: true }),
+    statusCRIT: new FormControl<boolean>(true, { nonNullable: true }),
+    query: new FormControl<string>('', { nonNullable: true }),
+    pageSize: new FormControl<number>(20, { nonNullable: true }),
   });
 
-  ngOnChanges() {
+  ngOnChanges(_: SimpleChanges): void {
     if (!this.filters) return;
     const f = this.filters;
     this.form.patchValue(
@@ -85,10 +73,10 @@ export class FilterBarComponent {
         from: f.from ? new Date(f.from) : null,
         to: f.to ? new Date(f.to) : null,
         zones: f.zones ?? [],
-        categories: (f as any).categories ?? [], // на случай если HistoryFilters без categories
-        statusOK: f.status?.includes('OK') ?? true,
-        statusLOW: f.status?.includes('LOW_STOCK') ?? true,
-        statusCRIT: f.status?.includes('CRITICAL') ?? true,
+        categories: f.categories ?? [],
+        statusOK: f.statusOk ?? true,
+        statusLOW: f.statusLow ?? true,
+        statusCRIT: f.statusCrit ?? true,
         query: f.query ?? '',
         pageSize: f.pageSize ?? 20,
       },
@@ -96,62 +84,60 @@ export class FilterBarComponent {
     );
   }
 
-  quick(days: 'today' | 'yesterday' | 'week' | 'month') {
+  quick(range: 'today' | 'yesterday' | 'week' | 'month'): void {
     const now = new Date();
-    const start = new Date();
-    if (days === 'today') start.setHours(0, 0, 0, 0);
-    if (days === 'yesterday') {
+    const start = new Date(now);
+
+    if (range === 'today') start.setHours(0, 0, 0, 0);
+    if (range === 'yesterday') {
       start.setDate(now.getDate() - 1);
       start.setHours(0, 0, 0, 0);
-      now.setDate(now.getDate() - 1);
       now.setHours(23, 59, 59, 999);
     }
-    if (days === 'week') {
+    if (range === 'week') {
       start.setDate(now.getDate() - 6);
       start.setHours(0, 0, 0, 0);
     }
-    if (days === 'month') {
+    if (range === 'month') {
       start.setMonth(now.getMonth() - 1);
       start.setHours(0, 0, 0, 0);
     }
     this.form.patchValue({ from: start, to: now });
   }
 
-  reset() {
-    this.form.reset({
-      from: null,
-      to: null,
-      zones: [],
-      categories: [],
-      statusOK: true,
-      statusLOW: true,
-      statusCRIT: true,
-      query: '',
-      pageSize: 20,
-    });
+  onReset(): void {
+    this.form.setValue(
+      {
+        from: null,
+        to: null,
+        zones: [],
+        categories: [],
+        statusOK: true,
+        statusLOW: true,
+        statusCRIT: true,
+        query: '',
+        pageSize: 20,
+      },
+      { emitEvent: false },
+    );
+    this.cleared.emit();
     this.emit();
   }
 
-  emit() {
-    const v = this.form.value;
-    const statuses = [
-      v.statusOK ? 'OK' : null,
-      v.statusLOW ? 'LOW_STOCK' : null, // ключевая правка здесь
-      v.statusCRIT ? 'CRITICAL' : null,
-    ].filter(Boolean) as Array<'OK' | 'LOW_STOCK' | 'CRITICAL'>;
-
-    // Собираем объект фильтров. Если HistoryFilters у тебя не содержит categories,
-    // приводим через unknown как HistoryFilters, чтобы не ругался компилятор.
-    const payload: any = {
+  emit(): void {
+    const v = this.form.getRawValue();
+    const payload: HistoryFilters = {
       from: v.from ? v.from.toISOString() : undefined,
       to: v.to ? v.to.toISOString() : undefined,
-      zones: v.zones ?? [],
-      categories: v.categories ?? [],
-      status: statuses,
-      query: v.query ?? '',
-      pageSize: v.pageSize ?? 20,
+      zones: v.zones,
+      categories: v.categories,
+      statusOk: v.statusOK,
+      statusLow: v.statusLOW,
+      statusCrit: v.statusCRIT,
+      query: v.query.trim(),
+      pageSize: v.pageSize,
+      page: 1,
     };
-
-    this.apply.emit(payload as unknown as HistoryFilters);
+    this.apply.emit(payload);
   }
 }

@@ -168,3 +168,41 @@
     min-height: unset;
   }
 }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 480px; /* карта слева, правая колонка 480px */
+  grid-template-rows: 1fr 1fr; /* верх и низ */
+  gap: 16px;
+  height: calc(100vh - 120px); /* чтобы сразу было видно 3 угла карты */
+}
+
+.map {
+  grid-column: 1 / 2;
+  grid-row: 1 / 3;
+  min-height: 0;
+}
+.stats {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+  min-height: 0;
+}
+.scans {
+  grid-column: 2 / 3;
+  grid-row: 2 / 2;
+  min-height: 0;
+}
+.ai {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+  min-height: 0;
+}
+
+.scans,
+.ai,
+.stats {
+  overflow: hidden;
+}
+.scans .card .scans-body {
+  height: calc(100% - 72px);
+  overflow: auto;
+}

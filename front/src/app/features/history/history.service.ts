@@ -1,178 +1,175 @@
+// src/app/features/history/history.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams, HttpRequest, HttpEvent } from '@angular/common/http';
-import { environment } from '../../../environments/environment';
+import { HttpClient, HttpParams, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-const BASE = environment.apiUrl;
-
 export interface HistoryFilters {
-  from?: string; // ISO
-  to?: string; // ISO
+  from?: string | null;
+  to?: string | null;
   zones?: string[];
-  status?: Array<'OK' | 'LOW_STOCK' | 'CRITICAL'>;
-  query?: string; // артикул или название
+  categories?: string[];
+  statusOk?: boolean;
+  statusLow?: boolean;
+  statusCrit?: boolean;
+  query?: string;
   page?: number;
   pageSize?: number;
   sort?: string; // "field:asc|desc"
 }
 
-export interface HistoryPage {
-  total: number;
-  items: Array<{
-    id: number;
-    productId: string;
-    productName: string;
-    quantity: number;
-    zone: string;
-    row?: string | null;
-    shelf?: string | null;
-    status: 'OK' | 'LOW_STOCK' | 'CRITICAL';
-    scannedAt: string; // ISO
-  }>;
-  pagination: { limit: number; offset: number };
+export interface HistoryRow {
+  id: number;
+  checked_at: string; // ISO
+  robot_id: string;
+  zone: string;
+  sku: string;
+  name: string;
+  expected_qty: number;
+  actual_qty: number;
+  diff: number; // actual - expected
+  status: 'ok' | 'low' | 'crit';
 }
 
-export type HistoryRow = HistoryPage['items'][number];
-/**
- * Точка тренда: t — метка времени (строка), остальные ключи (названия SKU) — числовые значения.
- * Индексная сигнатура допускает number | string, чтобы свойство t не конфликтовало.
- */
-export type TrendPoint = { t: string } & { [sku: string]: number | string };
+export interface PageData<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
 
-export interface HistorySummary {
+export interface SummaryData {
   checks: number;
   uniqueSkus: number;
-  mismatches: number; // LOW_STOCK + CRITICAL
-  avgZoneTimeMin: number; // нет на бэке — считаем 0
+  mismatches: number;
+  avgZoneMinutes: number;
+}
+
+// --- Экспорт-алиас для совместимости с импортами в подкомпонентах ---
+export type Summary = SummaryData;
+
+// --- Точки для тренд-чарта истории ---
+export interface TrendPoint {
+  t: string; // ISO дата/время
+  total: number; // агрегированное значение (кол-во проверок/сканов и т.п.)
 }
 
 @Injectable({ providedIn: 'root' })
 export class HistoryService {
   constructor(private http: HttpClient) {}
 
-    list(filters: HistoryFilters): Observable<HistoryPage> {
-    let params = new HttpParams();
+  fetchPage(f: HistoryFilters): Observable<PageData<HistoryRow>> {
+    let p = new HttpParams();
+    const add = (k: string, v: any) => {
+      if (v !== undefined && v !== null && v !== '') p = p.set(k, v);
+    };
+    add('from', f.from);
+    add('to', f.to);
+    (f.zones ?? []).forEach((z) => (p = p.append('zones', z)));
+    (f.categories ?? []).forEach((c) => (p = p.append('categories', c)));
+    add('statusOk', f.statusOk);
+    add('statusLow', f.statusLow);
+    add('statusCrit', f.statusCrit);
+    add('query', f.query);
+    add('page', f.page ?? 1);
+    add('pageSize', f.pageSize ?? 20);
+    add('sort', f.sort ?? 'checked_at:desc');
 
-    // было: dt_from / dt_to
-    if (filters.from) params = params.set('from', filters.from);
-    if (filters.to) params = params.set('to', filters.to);
-
-    // было: массив zones/statuses. Бэк принимает по одному значению.
-    const zone = (filters.zones && filters.zones.length > 0) ? filters.zones[0] : undefined;
-    if (zone) params = params.set('zone', zone);
-
-    const st = (filters.status && filters.status.length > 0) ? filters.status[0] : undefined;
-    if (st) params = params.set('status', st); // OK | LOW_STOCK | CRITICAL
-
-    if (filters.sort) {
-      const [field, dir] = filters.sort.split(':');
-      params = params.set('sort_by', field).set('sort_dir', dir === 'desc' ? 'desc' : 'asc');
-    }
-
-    const page = filters.page ?? 1;
-    const pageSize = filters.pageSize ?? 20;
-    params = params.set('limit', pageSize).set('offset', String((page - 1) * pageSize));
-
-    // BASE теперь '/api'
-    return this.http.get<any>(`${BASE}/inventory/history`, { params }).pipe(
-      map((res) => ({
-        total: res.total,
-        items: (res.items ?? []).map((x: any) => ({
-          id: x.id,
-          productId: x.product_id,
-          productName: x.product_name,
-          quantity: x.quantity,
-          zone: x.zone,
-          row: x.row,
-          shelf: x.shelf,
-          status: x.status,
-          scannedAt: x.scanned_at,
+    return this.http.get<any>('/api/history/page', { params: p }).pipe(
+      map((resp) => ({
+        items: (resp?.items ?? []).map((x: any) => ({
+          id: Number(x.id),
+          checked_at: String(x.checked_at),
+          robot_id: String(x.robot_id ?? '—'),
+          zone: String(x.zone ?? ''),
+          sku: String(x.sku ?? ''),
+          name: String(x.name ?? ''),
+          expected_qty: Number(x.expected_qty ?? 0),
+          actual_qty: Number(x.actual_qty ?? 0),
+          diff: Number(x.actual_qty ?? 0) - Number(x.expected_qty ?? 0),
+          status: String(x.status ?? 'ok').toLowerCase() as 'ok' | 'low' | 'crit',
         })),
-        pagination: { limit: res.pagination?.limit ?? pageSize, offset: res.pagination?.offset ?? 0 },
+        total: Number(resp?.total ?? 0),
+        page: Number(resp?.page ?? f.page ?? 1),
+        pageSize: Number(resp?.pageSize ?? f.pageSize ?? 20),
+      })),
+    );
+  }
+  uploadCsv(file: File): Observable<HttpEvent<any>> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<any>('/api/history/import/csv', form, {
+      reportProgress: true,
+      observe: 'events',
+    });
+  }
+  // Тренд для графика (даты/фильтры учитываются)
+  fetchTrend(f: HistoryFilters): Observable<TrendPoint[]> {
+    let p = new HttpParams();
+    const add = (k: string, v: any) => {
+      if (v !== undefined && v !== null && v !== '') p = p.set(k, v);
+    };
+    add('from', f.from);
+    add('to', f.to);
+    (f.zones ?? []).forEach((z) => (p = p.append('zones', z)));
+    (f.categories ?? []).forEach((c) => (p = p.append('categories', c)));
+    add('statusOk', f.statusOk);
+    add('statusLow', f.statusLow);
+    add('statusCrit', f.statusCrit);
+    add('query', f.query);
+
+    return this.http.get<any>('/api/history/trend', { params: p }).pipe(
+      map((resp) => {
+        const arr = resp?.points ?? resp ?? [];
+        return arr.map((x: any) => ({
+          t: String(x.t ?? x.time ?? x.date ?? new Date().toISOString()),
+          total: Number(x.total ?? x.value ?? x.count ?? 0),
+        })) as TrendPoint[];
+      }),
+    );
+  }
+
+  // Сводка по выбранному периоду/фильтрам
+  fetchSummary(f: HistoryFilters): Observable<SummaryData> {
+    let p = new HttpParams();
+    const add = (k: string, v: any) => {
+      if (v !== undefined && v !== null && v !== '') p = p.set(k, v);
+    };
+    add('from', f.from);
+    add('to', f.to);
+    (f.zones ?? []).forEach((z) => (p = p.append('zones', z)));
+    (f.categories ?? []).forEach((c) => (p = p.append('categories', c)));
+    add('statusOk', f.statusOk);
+    add('statusLow', f.statusLow);
+    add('statusCrit', f.statusCrit);
+    add('query', f.query);
+
+    return this.http.get<any>('/api/history/summary', { params: p }).pipe(
+      map((r) => ({
+        checks: Number(r?.checks ?? 0),
+        uniqueSkus: Number(r?.uniqueSkus ?? 0),
+        mismatches: Number(r?.mismatches ?? 0),
+        avgZoneMinutes: Number(r?.avgZoneMinutes ?? 0),
       })),
     );
   }
 
-
-  /**
-   * Клиентская агрегация тренда по дням (YYYY-MM-DD) и по SKU.
-   * Значение — сумма quantity за день.
-   */
-  fetchTrend(filters: HistoryFilters): Observable<TrendPoint[]> {
-    return this.list(filters).pipe(
-      map((page) => {
-        const buckets = new Map<string, Record<string, number>>();
-        const allSkus = new Set<string>();
-
-        for (const it of page.items) {
-          const day = it.scannedAt ? new Date(it.scannedAt) : new Date();
-          const key = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()))
-            .toISOString()
-            .slice(0, 10);
-
-          const sku = it.productName || it.productId || 'UNKNOWN';
-          allSkus.add(sku);
-
-          const rec = buckets.get(key) ?? {};
-          rec[sku] = (rec[sku] ?? 0) + Number(it.quantity ?? 0);
-          buckets.set(key, rec);
-        }
-
-        const days = Array.from(buckets.keys()).sort(); // ISO-дата сортируема лексикографически
-        const points: TrendPoint[] = days.map((d) => {
-          const row: TrendPoint = { t: d };
-          const src = buckets.get(d)!;
-          for (const sku of allSkus) {
-            if (src[sku] != null) {
-              // индексная сигнатура разрешает number | string
-              (row as any)[sku] = src[sku];
-            }
-          }
-          return row;
-        });
-
-        return points;
-      }),
+  // Опции для фильтров
+  fetchOptions(): Observable<{ zones: string[]; categories: string[] }> {
+    return this.http.get<any>('/api/history/options').pipe(
+      map((r) => ({
+        zones: (r?.zones ?? []).map((x: any) => String(x)),
+        categories: (r?.categories ?? []).map((x: any) => String(x)),
+      })),
     );
   }
 
-  /**
-   * Сводка для SummaryBar: проверки, уникальные SKU, несоответствия (LOW_STOCK+CRITICAL), среднее время в зоне (0).
-   */
-  fetchSummary(filters: HistoryFilters): Observable<HistorySummary> {
-    return this.list(filters).pipe(
-      map((page) => {
-        const checks = page.total ?? page.items.length;
-        const skuSet = new Set<string>();
-        let mismatches = 0;
-
-        for (const it of page.items) {
-          skuSet.add(it.productId || it.productName);
-          if (it.status === 'LOW_STOCK' || it.status === 'CRITICAL') mismatches++;
-        }
-
-        return {
-          checks,
-          uniqueSkus: skuSet.size,
-          mismatches,
-          avgZoneTimeMin: 0,
-        };
-      }),
-    );
+  // Экспорт
+  exportExcel(ids: number[]) {
+    return this.http.post('/api/history/export/excel', { ids }, { responseType: 'blob' });
   }
 
-  uploadCsv(file: File): Observable<HttpEvent<unknown>> {
-    const form = new FormData();
-    form.append('file', file);
-    const req = new HttpRequest('POST', `${BASE}/inventory/import`, form, { reportProgress: true });
-    return this.http.request(req);
-  }
-
-  exportSelectedToExcel(ids: string[]): Observable<Blob> {
-    const params = new HttpParams().set('ids', ids.join(','));
-    return this.http
-      .get(`${BASE}/export/excel`, { params, responseType: 'blob' })
-      .pipe(map((res) => res as Blob));
+  exportPdf(ids: number[]) {
+    return this.http.post('/api/history/export/pdf', { ids }, { responseType: 'blob' });
   }
 }

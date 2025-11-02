@@ -4,23 +4,20 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, timer } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 
-// ===== Экспортируемые типы, которые используют компоненты =====
 export interface Robot {
   id: string;
-  // индексы сетки: A..Z -> 0..25, 1..50 -> 0..49
   x: number;
   y: number;
   battery: number;
   status: 'active' | 'low' | 'offline';
-  zone: string; // напр. "A12"
-  updatedAt: string; // ISO
+  zone: string;
+  updatedAt: string;
 }
 
 export interface ZoneSummary {
-  zone: string; // "A1", "B7", ...
-  robots: number; // число роботов в зоне
+  zone: string;
+  robots: number;
 }
-
 export interface Metric {
   name: string;
   value: number;
@@ -28,16 +25,18 @@ export interface Metric {
 
 export interface ActivityPoint {
   t: string; // ISO
-  v: number;
+  v: number; // scans per minute
 }
 
 export interface ScanRow {
-  id: number;
-  productId: string;
-  productName: string;
-  zone: string;
-  quantity: number;
-  scannedAt: string;
+  id: number; // id записи
+  robotId: string; // ID робота (если бэк не отдаёт, будет '—')
+  productId: string; // артикул
+  productName: string; // название
+  zone: string; // зона
+  quantity: number; // остаток / отсканированное кол-во
+  scannedAt: string; // ISO
+  stockStatus: 'ok' | 'low' | 'crit';
 }
 
 export interface ForecastRow {
@@ -47,19 +46,19 @@ export interface ForecastRow {
   stockoutInDays: number | null;
 }
 
-// ===== Формат ответа бэка для /api/dashboard/current =====
 interface DashboardResponse {
   robots: Array<{
     robot_id: string;
     status: string;
     battery_level: number;
     last_update: string;
-    zone: string; // 'A'..'Z'
-    row: number; // 1..50
+    zone: string;
+    row: number;
     shelf: number;
   }>;
   recent_scans: Array<{
     id: number;
+    robot_id?: string;
     product_id: string;
     product_name: string;
     zone: string;
@@ -71,7 +70,12 @@ interface DashboardResponse {
     offline_robots: number;
     critical_items: number;
     low_stock_items: number;
-    scans_last_hour: number;
+    scans_last_hour: number; // кол-во сканов за последний час
+    // плюс могут быть разные варианты "проверено сегодня":
+    checked_today?: number;
+    items_checked_today?: number;
+    processed_today?: number;
+    scans_today?: number;
   };
 }
 
@@ -82,6 +86,8 @@ export class DashboardService {
   private metricsSub = new BehaviorSubject<Metric[]>([]);
   private activitySub = new BehaviorSubject<ActivityPoint[]>([]);
   private scansSub = new BehaviorSubject<ScanRow[]>([]);
+  private checkedTodaySub = new BehaviorSubject<number>(0);
+  private avgBatterySub = new BehaviorSubject<number>(0);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -100,45 +106,61 @@ export class DashboardService {
   scans$(): Observable<ScanRow[]> {
     return this.scansSub.asObservable();
   }
+  checkedToday$(): Observable<number> {
+    return this.checkedTodaySub.asObservable();
+  }
+  avgBattery$(): Observable<number> {
+    return this.avgBatterySub.asObservable();
+  }
 
-  // Разовый опрос состояния дашборда
+  private stockBadge(qty: number): 'ok' | 'low' | 'crit' {
+    const q = Number(qty) || 0;
+    if (q <= 5) return 'crit';
+    if (q <= 15) return 'low';
+    return 'ok';
+  }
+
   private loadOnce(): Observable<void> {
     return this.http.get<DashboardResponse>(`/api/dashboard/current`).pipe(
       map((r) => {
-        // Роботы: переводим (zone,row) в индексы сетки (x,y)
+        // --- Роботы ---
         const robots: Robot[] = (r.robots ?? []).map((x) => {
-          const colChar = (x.zone ?? 'A').toString().toUpperCase().charCodeAt(0);
-          const ci = Math.max(0, Math.min(25, Number.isFinite(colChar) ? colChar - 65 : 0)); // A=0..Z=25
-          const ri = Math.max(0, Math.min(49, (x.row ?? 1) - 1)); // 1..50 -> 0..49
+          const zoneChar = String(x.zone ?? 'A')
+            .trim()
+            .toUpperCase();
+          const colCode = zoneChar.charCodeAt(0);
+          const ci = Math.max(0, Math.min(25, Number.isFinite(colCode) ? colCode - 65 : 0));
+          const rowNum = Number(x.row ?? 1);
+          const ri = Math.max(0, Math.min(49, (Number.isFinite(rowNum) ? rowNum : 1) - 1));
 
+          const rawStatus = String(x.status ?? '').toLowerCase();
           const status: Robot['status'] =
-            (x.status ?? '').toLowerCase() === 'offline'
-              ? 'offline'
-              : (x.battery_level ?? 0) < 20
-                ? 'low'
-                : 'active';
+            rawStatus === 'offline' ? 'offline' : (x.battery_level ?? 0) < 20 ? 'low' : 'active';
 
           return {
-            id: x.robot_id,
+            id: String(x.robot_id ?? ''),
             x: ci,
             y: ri,
             battery: Math.round(Number(x.battery_level ?? 0)),
             status,
-            zone: `${x.zone ?? 'A'}${x.row ?? ''}`,
-            updatedAt: x.last_update,
+            zone: `${zoneChar}${rowNum || ''}`,
+            updatedAt: String(x.last_update ?? ''),
           };
         });
         this.robotsSub.next(robots);
 
-        // Сводка по зонам (для тепловой карты): агрегируем по "A12"
-        const zoneMap = new Map<string, number>();
-        for (const rbt of robots) {
-          zoneMap.set(rbt.zone, (zoneMap.get(rbt.zone) ?? 0) + 1);
-        }
-        const zones: ZoneSummary[] = Array.from(zoneMap, ([zone, robots]) => ({ zone, robots }));
-        this.zonesSub.next(zones);
+        // Средний заряд (в %)
+        const avg = robots.length
+          ? +(robots.reduce((s, r) => s + (r.battery ?? 0), 0) / robots.length).toFixed(1)
+          : 0;
+        this.avgBatterySub.next(avg);
 
-        // Метрики
+        // --- Зоны ---
+        const zoneMap = new Map<string, number>();
+        for (const rbt of robots) zoneMap.set(rbt.zone, (zoneMap.get(rbt.zone) ?? 0) + 1);
+        this.zonesSub.next(Array.from(zoneMap, ([zone, robots]) => ({ zone, robots })));
+
+        // --- Метрики (без «Проверено сегодня», его даём отдельным стримом) ---
         const m: Metric[] = [
           { name: 'Всего роботов', value: r.statistics?.total_robots ?? robots.length },
           {
@@ -148,34 +170,41 @@ export class DashboardService {
           },
           { name: 'Критичных SKU', value: r.statistics?.critical_items ?? 0 },
           { name: 'Мало остатков', value: r.statistics?.low_stock_items ?? 0 },
-          { name: 'Сканов за час', value: r.statistics?.scans_last_hour ?? 0 },
         ];
         this.metricsSub.next(m);
 
-        // Активность
-        const pt: ActivityPoint = {
-          t: new Date().toISOString(),
-          v: r.statistics?.scans_last_hour ?? 0,
-        };
-        const prev = this.activitySub.getValue();
-        this.activitySub.next([...prev, pt].slice(-60));
+        // --- Проверено сегодня (поддержка разных ключей) ---
+        const checkedToday =
+          (r.statistics as any)?.checked_today ??
+          (r.statistics as any)?.items_checked_today ??
+          (r.statistics as any)?.processed_today ??
+          (r.statistics as any)?.scans_today ??
+          0;
+        this.checkedTodaySub.next(Number(checkedToday) || 0);
 
-        // Последние сканы
+        // --- Активность: сканы/мин ---
+        const perMinRaw = (r.statistics?.scans_last_hour ?? 0) / 60;
+        const perMin = Math.max(0, Math.round(perMinRaw * 10) / 10);
+        const prev = this.activitySub.getValue();
+        this.activitySub.next([...prev, { t: new Date().toISOString(), v: perMin }].slice(-60));
+
+        // --- Последние сканы (макс. 20) ---
         const scans: ScanRow[] = (r.recent_scans ?? []).map((s) => ({
-          id: s.id,
-          productId: s.product_id,
-          productName: s.product_name,
-          zone: s.zone,
-          quantity: s.quantity,
-          scannedAt: s.scanned_at,
+          id: Number(s.id),
+          robotId: String(s.robot_id ?? '—'),
+          productId: String(s.product_id ?? ''),
+          productName: String(s.product_name ?? ''),
+          zone: String(s.zone ?? ''),
+          quantity: Number(s.quantity ?? 0),
+          scannedAt: String(s.scanned_at ?? ''),
+          stockStatus: this.stockBadge(Number(s.quantity ?? 0)),
         }));
-        this.scansSub.next(scans);
+        this.scansSub.next(scans.slice(-20));
       }),
       catchError(() => of(void 0)),
     );
   }
 
-  // Публичные методы запуска
   forceRefresh(): void {
     this.loadOnce().subscribe();
   }
@@ -187,12 +216,7 @@ export class DashboardService {
       .subscribe();
   }
 
-  // ------- Прогноз (кнопка "Обновить прогноз") -------
-  /**
-   * Сразу обращаемся к POST /api/ai/predict (на бэке реализовано),
-   * чтобы избежать 404 на несуществующий GET /api/ai/forecast.
-   * Возвращаем унифицированный массив ForecastRow.
-   */
+  // --- Прогноз ---
   forecast$(periodDays = 7, categories?: string[]): Observable<ForecastRow[]> {
     const body: any = { period_days: periodDays };
     if (categories?.length) body.categories = categories;

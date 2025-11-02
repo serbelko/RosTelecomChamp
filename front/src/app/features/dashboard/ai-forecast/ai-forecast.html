@@ -1,23 +1,32 @@
-<mat-card class="card">
-  <div class="head">
+<mat-card class="ai-card">
+  <div class="ai-head">
     <h4>Прогноз ИИ на следующие 7 дней</h4>
-    <button mat-stroked-button color="primary" (click)="refresh()">Обновить прогноз</button>
+    <button mat-stroked-button color="primary" (click)="refresh()" [disabled]="loading">
+      {{ loading ? 'Обновление…' : 'Обновить прогноз' }}
+    </button>
   </div>
 
-  <div class="rows" *ngIf="rows?.length; else empty">
-    <div class="row" *ngFor="let r of rows">
-      <div class="name">{{ r.itemName }} ({{ r.sku }})</div>
-      <div class="stock">Остаток: {{ r.stock }}</div>
-      <div class="date">
-        Исчерпание:
-        {{ r.depletionDate ? (r.depletionDate | date: 'dd.MM.yyyy') : '—' }}
+  <div class="ai-list" *ngIf="rows.length; else empty">
+    <div class="ai-row" *ngFor="let r of rows; trackBy: trackBySku">
+      <div class="name" [title]="r.itemName">{{ r.itemName }}</div>
+      <div class="sku">{{ r.sku }}</div>
+      <div class="stock">
+        Остаток: <b>{{ r.stock }}</b>
       </div>
-      <div class="rec">Рекомендуется: {{ r.recommendedQty }}</div>
-      <div class="conf">Достоверность: {{ r.confidence | number: '1.0-0' }}%</div>
+      <div class="eta" *ngIf="r.depletionDate; else nd">
+        Исчерп.: <b>{{ r.depletionDate | date: 'dd.MM.yyyy' }}</b>
+      </div>
+      <ng-template #nd><div class="eta muted">Исчерп.: —</div></ng-template>
+      <div class="rec">
+        Реком.: <b>{{ r.recommendedQty }}</b>
+      </div>
+      <div class="conf">
+        <span class="conf-badge">{{ r.confidence }}%</span>
+      </div>
     </div>
   </div>
 
   <ng-template #empty>
-    <div class="empty">Нет данных прогноза</div>
+    <div class="muted">Нет данных прогноза.</div>
   </ng-template>
 </mat-card>

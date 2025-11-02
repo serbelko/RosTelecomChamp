@@ -1,6 +1,143 @@
-<div class="history-page">
-  <app-filter-bar (apply)="onApply($event)" [filters]="filters()"></app-filter-bar>
-  <app-summary-bar [filters]="filters()"></app-summary-bar>
-  <app-history-table [filters]="filters()" (filtersChange)="onApply($event)"></app-history-table>
-  <app-trend-chart [filters]="filters()"></app-trend-chart>
+<div class="filters card">
+  <div class="row wrap">
+    <mat-form-field appearance="outline">
+      <mat-label>От</mat-label>
+      <input matInput [matDatepicker]="dpFrom" [formControl]="form.controls.from" />
+      <mat-datepicker-toggle matSuffix [for]="dpFrom"></mat-datepicker-toggle>
+      <mat-datepicker #dpFrom></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>До</mat-label>
+      <input matInput [matDatepicker]="dpTo" [formControl]="form.controls.to" />
+      <mat-datepicker-toggle matSuffix [for]="dpTo"></mat-datepicker-toggle>
+      <mat-datepicker #dpTo></mat-datepicker>
+    </mat-form-field>
+
+    <div class="chips">
+      <button mat-stroked-button (click)="quick('today')">Сегодня</button>
+      <button mat-stroked-button (click)="quick('yesterday')">Вчера</button>
+      <button mat-stroked-button (click)="quick('week')">Неделя</button>
+      <button mat-stroked-button (click)="quick('month')">Месяц</button>
+    </div>
+
+    <mat-form-field class="grow" appearance="outline">
+      <mat-label>Зоны</mat-label>
+      <mat-select [formControl]="form.controls.zones" multiple>
+        <mat-option *ngFor="let z of zonesOptions" [value]="z">{{ z }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field class="grow" appearance="outline">
+      <mat-label>Категории</mat-label>
+      <mat-select [formControl]="form.controls.categories" multiple>
+        <mat-option *ngFor="let c of categoriesOptions" [value]="c">{{ c }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field class="q grow" appearance="outline">
+      <mat-label>Поиск артикул/название</mat-label>
+      <input matInput [formControl]="form.controls.query" placeholder="например, TEL-8901" />
+      <button mat-icon-button matSuffix (click)="apply()"><mat-icon>search</mat-icon></button>
+    </mat-form-field>
+  </div>
+
+  <div class="row">
+    <mat-checkbox [formControl]="form.controls.statusOk">ОК</mat-checkbox>
+    <mat-checkbox [formControl]="form.controls.statusLow">Низкий</mat-checkbox>
+    <mat-checkbox [formControl]="form.controls.statusCrit">Критично</mat-checkbox>
+
+    <span class="spacer"></span>
+    <button mat-flat-button color="primary" (click)="apply()">Применить фильтры</button>
+    <button mat-stroked-button (click)="reset()">Сбросить</button>
+  </div>
 </div>
+
+<div class="summary row">
+  <div class="sum-card">
+    <div class="cap">Всего проверок</div>
+    <div class="val">{{ summary?.checks ?? 0 }}</div>
+  </div>
+  <div class="sum-card">
+    <div class="cap">Уникальных товаров</div>
+    <div class="val">{{ summary?.uniqueSkus ?? 0 }}</div>
+  </div>
+  <div class="sum-card">
+    <div class="cap">Выявлено расхождений</div>
+    <div class="val">{{ summary?.mismatches ?? 0 }}</div>
+  </div>
+  <div class="sum-card">
+    <div class="cap">Среднее время зоны</div>
+    <div class="val">{{ summary?.avgZoneMinutes ?? 0 }} мин</div>
+  </div>
+</div>
+
+<mat-card class="table-card">
+  <div class="table-scroll">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th><input type="checkbox" (change)="toggleAll($event)" /></th>
+          <th (click)="sortBy('checked_at')">Дата и время</th>
+          <th (click)="sortBy('robot_id')">ID робота</th>
+          <th (click)="sortBy('zone')">Зона</th>
+          <th (click)="sortBy('sku')">Артикул</th>
+          <th (click)="sortBy('name')">Название</th>
+          <th (click)="sortBy('expected_qty')">Ожид.</th>
+          <th (click)="sortBy('actual_qty')">Факт</th>
+          <th (click)="sortBy('diff')">Δ</th>
+          <th (click)="sortBy('status')">Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of pageData?.items ?? []">
+          <td><input type="checkbox" (change)="toggleOne(r.id, $event)" /></td>
+          <td>{{ r.checked_at | date: 'dd.MM.y HH:mm:ss' }}</td>
+          <td>{{ r.robot_id }}</td>
+          <td>{{ r.zone }}</td>
+          <td>{{ r.sku }}</td>
+          <td class="name" [title]="r.name">{{ r.name }}</td>
+          <td class="num">{{ r.expected_qty }}</td>
+          <td class="num">{{ r.actual_qty }}</td>
+          <td class="num" [class.minus]="r.diff < 0" [class.plus]="r.diff > 0">{{ r.diff }}</td>
+          <td>
+            <span class="badge" [ngClass]="statusClass(r.status)">
+              {{ r.status === 'ok' ? 'ОК' : r.status === 'low' ? 'Низкий' : 'Критично' }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-footer row">
+    <div class="left">
+      Показать:
+      <button mat-stroked-button (click)="changePageSize(20)">20</button>
+      <button mat-stroked-button (click)="changePageSize(50)">50</button>
+      <button mat-stroked-button (click)="changePageSize(100)">100</button>
+    </div>
+
+    <div class="mid">
+      Стр. {{ pageData?.page ?? 1 }} из
+      {{ pageData ? Math.max(1, Math.ceil(pageData.total / (pageData.pageSize || 20))) : 1 }}
+      <button mat-icon-button (click)="changePage(-1)" [disabled]="(pageData?.page ?? 1) <= 1">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        (click)="changePage(1)"
+        [disabled]="
+          pageData ? pageData.page >= Math.ceil(pageData.total / (pageData.pageSize || 20)) : true
+        "
+      >
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+
+    <div class="right">
+      <button mat-flat-button color="primary" (click)="exportExcel()">Экспорт в Excel</button>
+      <button mat-stroked-button (click)="exportPdf()">Экспорт в PDF</button>
+    </div>
+  </div>
+</mat-card>

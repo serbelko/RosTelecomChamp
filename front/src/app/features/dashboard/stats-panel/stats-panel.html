@@ -1,61 +1,91 @@
-<mat-card class="card">
-  <div class="cards">
-    <mat-card class="kpi">
-      <div class="label">Активных роботов</div>
-      <div class="value">{{ metrics?.active ?? 0 }} / {{ metrics?.total ?? 0 }}</div>
-    </mat-card>
+<mat-card class="stats-card">
+  <div class="grid">
+    <!-- 4 карточки -->
+    <ng-container *ngIf="metrics$ | async as m">
+      <div class="kpi">
+        <div class="label">Активных роботов</div>
+        <div class="val">
+          <b>{{ (m[0]?.value || 0) - (m[1]?.value || 0) }}</b>
+          <span>/ {{ m[0]?.value || 0 }}</span>
+        </div>
+      </div>
 
-    <mat-card class="kpi">
-      <div class="label">Проверено сегодня</div>
-      <div class="value">{{ metrics?.checkedToday ?? 0 }}</div>
-    </mat-card>
+      <div class="kpi">
+        <div class="label">Проверено сегодня</div>
+        <div class="val">
+          <b>{{ m[4]?.value || 0 }}</b>
+        </div>
+      </div>
 
-    <mat-card class="kpi">
-      <div class="label">Критических остатков</div>
-      <div class="value">{{ metrics?.criticalSkus ?? 0 }}</div>
-    </mat-card>
+      <div class="kpi">
+        <div class="label">Критических остатков</div>
+        <div class="val">
+          <b>{{ m[2]?.value || 0 }}</b>
+        </div>
+      </div>
 
-    <mat-card class="kpi">
-      <div class="label">Средний заряд</div>
-      <div class="value">{{ metrics?.avgBattery ?? 0 }}%</div>
-    </mat-card>
-  </div>
+      <div class="kpi">
+        <div class="label">Средний заряд</div>
+        <div class="val">
+          <b>{{ m[3]?.value || 0 }}</b
+          ><span>%</span>
+        </div>
+      </div>
+    </ng-container>
 
-  <h4>
-    Активность роботов (последний час)
-    <span class="unit">· {{ unit }}</span>
-  </h4>
+    <!-- График активности -->
+    <div class="chart">
+      <div class="head">Активность роботов (последний час) · сканы/мин</div>
 
-  <div class="chart">
-    <!-- viewBox совпадает с W × H в .ts -->
-    <svg viewBox="0 0 300 120" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-opacity="0.22" />
-          <stop offset="100%" stop-opacity="0" />
-        </linearGradient>
-      </defs>
+      <ng-container *ngIf="points$ | async as points; else emptyChart">
+        <svg [attr.viewBox]="'0 0 640 180'" class="svg">
+          <!-- ось Y и сетка -->
+          <ng-container *ngIf="points.length as n">
+            <ng-container *ngIf="n > 0">
+              <ng-container *ngFor="let t of yTicks(points); let i = index">
+                <line
+                  x1="30"
+                  [attr.y1]="
+                    10 +
+                    (140 -
+                      yToPx(t, 140, yTicks(points)[0], yTicks(points)[yTicks(points).length - 1]))
+                  "
+                  x2="630"
+                  [attr.y2]="
+                    10 +
+                    (140 -
+                      yToPx(t, 140, yTicks(points)[0], yTicks(points)[yTicks(points).length - 1]))
+                  "
+                  class="grid"
+                />
+                <text
+                  x="6"
+                  [attr.y]="
+                    14 +
+                    (140 -
+                      yToPx(t, 140, yTicks(points)[0], yTicks(points)[yTicks(points).length - 1]))
+                  "
+                  class="ylabel"
+                >
+                  {{ fmt(t) }}
+                </text>
+              </ng-container>
 
-      <!-- сетка с подписями -->
-      <g class="grid">
-        <g *ngFor="let y of gridY; let i = index">
-          <line x1="0" [attr.y1]="y" x2="300" [attr.y2]="y"></line>
-          <text class="tick" x="2" [attr.y]="y - 2">{{ gridLbl[i] }}</text>
-        </g>
-      </g>
+              <!-- линия -->
+              <path class="line" [attr.d]="'M 30,10 ' + buildPath(points, 600, 140)" />
 
-      <!-- заливка -->
-      <polygon [attr.points]="areaPoints" fill="url(#areaGrad)"></polygon>
+              <!-- подписи X -->
+              <ng-container *ngFor="let xl of xLabels(points, 600)">
+                <text [attr.x]="30 + xl.x" y="170" class="xlabel">{{ xl.label }}</text>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+        </svg>
+      </ng-container>
 
-      <!-- линия -->
-      <polyline
-        [attr.points]="points"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
-    </svg>
+      <ng-template #emptyChart>
+        <div class="muted">Нет данных для графика.</div>
+      </ng-template>
+    </div>
   </div>
 </mat-card>

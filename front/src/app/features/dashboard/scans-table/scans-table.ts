@@ -1,8 +1,8 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
-import { DashboardService, ScanRow } from '../dashboard.service';
 import { Subscription } from 'rxjs';
+import { DashboardService, ScanRow } from '../dashboard.service';
 
 @Component({
   selector: 'app-scans-table',
@@ -16,22 +16,39 @@ export class ScansTableComponent implements OnInit, OnDestroy {
   private sub = new Subscription();
 
   rows: ScanRow[] = [];
+  pausedFlag = false;
 
   ngOnInit(): void {
-    // теперь берём поток без аргументов (данные уже в сторе)
     this.sub.add(
       this.api.scans$().subscribe((list) => {
-        this.rows = (list ?? []).slice(0, 20);
+        if (this.pausedFlag) return;
+        this.rows = list.slice(-20);
+        queueMicrotask(() => this.autoScroll());
       }),
     );
   }
-
   ngOnDestroy(): void {
     this.sub.unsubscribe();
   }
 
-  /** trackBy для *ngFor, чтобы Angular не перерисовывал все строки */
-  trackById(_index: number, row: ScanRow): number | string {
-    return row.id ?? `${row.productId}-${row.scannedAt}`;
+  togglePause(): void {
+    this.pausedFlag = !this.pausedFlag;
+  }
+  paused(): boolean {
+    return this.pausedFlag;
+  }
+
+  status(r: ScanRow): 'ok' | 'low' | 'crit' {
+    return r.stockStatus;
+  }
+
+  trackById(_: number, r: ScanRow) {
+    return r.id;
+  }
+
+  private autoScroll(): void {
+    const el = document.querySelector('.scans-body');
+    if (!el) return;
+    (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight;
   }
 }

@@ -24,7 +24,6 @@ interface ForecastVm {
 })
 export class ForecastPanelComponent implements OnInit {
   private api = inject(DashboardService);
-
   loading = false;
   rows: ForecastVm[] = [];
 
@@ -32,33 +31,39 @@ export class ForecastPanelComponent implements OnInit {
     this.refresh();
   }
 
+  trackBySku = (_: number, r: ForecastVm) => r.sku;
+
   refresh(): void {
     this.loading = true;
     this.api
       .forecast$(7)
       .pipe(
-        map((rows: ForecastRow[]) =>
-          rows.map((r) => {
+        map((rows: ForecastRow[]) => {
+          const mapped = rows.map((r) => {
             const depletionDate =
               typeof r.stockoutInDays === 'number' && isFinite(r.stockoutInDays)
                 ? new Date(Date.now() + r.stockoutInDays * 24 * 60 * 60 * 1000)
                 : null;
-
-            // простая эвристика закупки
             const recommended = Math.max(0, Math.ceil(r.expected * 0.6));
-            // на бэке приходит общий confidence, без детализации по sku - для UI поставим константу
-            const confidence = 85;
-
             return {
               itemName: r.category || 'Товар',
               sku: r.productId,
-              stock: Math.round(r.expected / 2),
+              stock: Math.max(0, Math.round(r.expected / 2)),
               depletionDate,
               recommendedQty: recommended,
-              confidence,
+              confidence: 85,
             } as ForecastVm;
-          }),
-        ),
+          });
+
+          // сортировка по ближайшей дате исчерпания и отбор топ-5
+          return mapped
+            .sort((a, b) => {
+              const ta = a.depletionDate?.getTime() ?? Number.POSITIVE_INFINITY;
+              const tb = b.depletionDate?.getTime() ?? Number.POSITIVE_INFINITY;
+              return ta - tb;
+            })
+            .slice(0, 5);
+        }),
         catchError(() => of([] as ForecastVm[])),
         finalize(() => (this.loading = false)),
       )

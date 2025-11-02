@@ -1,3 +1,4 @@
+<!-- src/app/features/history/summary-bar/summary-bar.html -->
 <mat-card class="summary">
   <div class="item">
     <div class="label">Всего проверок</div>
@@ -8,11 +9,11 @@
     <div class="value">{{ (summary$ | async)?.uniqueSkus }}</div>
   </div>
   <div class="item">
-    <div class="label">Выявлено расхождений</div>
+    <div class="label">Расхождений</div>
     <div class="value">{{ (summary$ | async)?.mismatches }}</div>
   </div>
   <div class="item">
-    <div class="label">Среднее время зоны, мин</div>
-    <div class="value">{{ (summary$ | async)?.avgZoneTimeMin }}</div>
+    <div class="label">Среднее время зоны</div>
+    <div class="value">{{ (summary$ | async)?.avgZoneMinutes }} мин</div>
   </div>
 </mat-card>
