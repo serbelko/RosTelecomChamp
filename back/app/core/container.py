@@ -105,4 +105,5 @@ class Container(containers.DeclarativeContainer):
     ai_service = providers.Factory(
         AIService,
         product_repo=product_repository,
+        inventory_repo=inventory_repository,
     )

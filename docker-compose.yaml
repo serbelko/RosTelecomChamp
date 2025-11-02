@@ -40,6 +40,9 @@ services:
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: app_pass
       POSTGRES_DB: app_db
+      OPENROUTER_API_KEY: "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"
+      OPENROUTER_MODEL: "deepseek/deepseek-r1-0528-qwen3-8b:free"
+      OPENROUTER_URL: "https://openrouter.ai/api/v1/chat/completions"
 
       DATABASE_URL: postgresql+psycopg://app_user:app_pass@postgres:5432/app_db
       ASYNC_DATABASE_URL: postgresql+psycopg://app_user:app_pass@postgres:5432/app_db
@@ -61,16 +64,18 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  robot_emulator:
-    build: ./back/robot_emulator
-    environment:
-      API_BASE: http://backend:8000   # ← правильная переменная и сразу с /api
-      ROBOTS_COUNT: "5"
-      UPDATE_INTERVAL: "10"
-    depends_on:
-      backend:
-        condition: service_started
-    restart: unless-stopped
+  # robot_emulator:
+  #   build: ./back/robot_emulator
+  #   environment:
+  #     API_BASE: http://backend:8000   # ← правильная переменная и сразу с /api
+  #     ROBOTS_COUNT: "5"
+  #     UPDATE_INTERVAL: "10"
+  #   depends_on:
+  #     backend:
+  #       condition: service_started
+  #   restart: unless-stopped
+
+  
 
   # tests:
   #   build:
