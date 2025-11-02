@@ -108,56 +108,6 @@ POST /api/ai/predict
 
 ---
 
-## 🐳 Docker Compose
-
-Для удобства оба сервиса разворачиваются одной командой:
-
-```bash
-docker compose up -d --build
-```
-
-### Пример `docker-compose.yml`
-```yaml
-version: "3.9"
-services:
-  backend:
-    build: ./backend
-    env_file: .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-    networks:
-      - warehouse
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "4200:80"
-    depends_on:
-      - backend
-    networks:
-      - warehouse
-
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: warehouse
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - warehouse
-
-networks:
-  warehouse:
-
-volumes:
-  pgdata:
-```
-
----
 
 ## 🔌 API Обзор
 
@@ -203,5 +153,6 @@ volumes:
 | **@serbelko** | Backend, AI Integration |
 | **@deusexeclipse** | Backend, AI Integration |
 | **@rayn1xx** | Frontend, Design |
+| **Андрей Геворков** | Крутой аналитик |
 
 
