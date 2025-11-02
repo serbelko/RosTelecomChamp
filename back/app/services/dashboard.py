@@ -52,7 +52,7 @@ class DashboardService:
         """
         Берём всех роботов.
         """
-        session = self.robot_repo.db  # AsyncSession
+        session = self.robot_repo.session  # AsyncSession
         query = select(Robots)
         result = await session.execute(query)
         rows = result.scalars().all()
@@ -107,7 +107,7 @@ class DashboardService:
         - сколько сканов сделано за последний час
         """
 
-        session_r = self.robot_repo.db
+        session_r = self.robot_repo.session
         session_h = self.history_repo.session
 
         # всего роботов
