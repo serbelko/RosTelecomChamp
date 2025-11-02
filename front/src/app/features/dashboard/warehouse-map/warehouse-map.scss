@@ -257,3 +257,46 @@
   border-radius: 50%;
   margin-top: 6px;
 }
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.map-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.map-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  .spacer {
+    flex: 1;
+  }
+}
+
+.viewport {
+  flex: 1 1 auto; /* займёт всё оставшееся место */
+  min-height: 320px; /* страховка */
+  position: relative;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.tip {
+  position: absolute;
+  pointer-events: none;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transform: translate(6px, 6px);
+  z-index: 2;
+}
