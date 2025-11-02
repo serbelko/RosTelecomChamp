@@ -19,7 +19,7 @@
   <div
     class="ws-indicator"
     [class.ok]="wsStatus === 'connected'"
-    [class.retry]="wsStatus === 'connecting'"
+    [class.retry]="wsStatus === 'reconnecting'"
     [class.bad]="wsStatus === 'disconnected'"
   ></div>
 </div>

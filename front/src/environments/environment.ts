@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: '/api', // идём через dev-proxy на :8000
-  wsUrl: '/ws', // WS тоже через dev-proxy
+  apiUrl: 'http://localhost:8000/api',
+  wsUrl: 'ws://localhost:8000', // ✅ то же самое
+  debug: false,
 };
